@@ -10,8 +10,8 @@ const RPC_URL = "https://rpc.testnet.arc.network";
 
 const RSS_SOURCES = {
   siyaset: [
-    "https://feeds.bbci.co.uk/turkish/rss.xml",
-    "https://www.ntv.com.tr/gundem.rss"
+    "https://feeds.bbci.co.uk/turkce/rss.xml",
+    "https://www.ntv.com.tr/turkiye.rss"
   ],
   ekonomi: [
     "https://www.bloomberght.com/rss",
@@ -22,8 +22,8 @@ const RSS_SOURCES = {
     "https://www.milliyet.com.tr/rss/rssNew/magazin_rss.xml"
   ],
   spor: [
-    "https://www.trtspor.com.tr/rss",
-    "https://www.fanatik.com.tr/rss"
+    "https://www.hurriyet.com.tr/rss/spor",
+    "https://www.sabah.com.tr/rss/spor.xml"
   ]
 };
 

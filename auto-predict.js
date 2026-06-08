@@ -12,8 +12,8 @@ const INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 const RSS_SOURCES = {
   siyaset: [
-    "https://feeds.bbci.co.uk/turkish/rss.xml",
-    "https://www.ntv.com.tr/gundem.rss"
+    "https://feeds.bbci.co.uk/turkce/rss.xml",
+    "https://www.ntv.com.tr/turkiye.rss"
   ],
   ekonomi: [
     "https://www.bloomberght.com/rss",
@@ -24,8 +24,8 @@ const RSS_SOURCES = {
     "https://www.milliyet.com.tr/rss/rssNew/magazin_rss.xml"
   ],
   spor: [
-    "https://www.trtspor.com.tr/rss",
-    "https://www.fanatik.com.tr/rss"
+    "https://www.hurriyet.com.tr/rss/spor",
+    "https://www.sabah.com.tr/rss/spor.xml"
   ]
 };
 
@@ -175,7 +175,7 @@ async function main() {
   console.log("Arc Predict - Otomatik Tahmin Sistemi");
   console.log(`Contract: ${CONTRACT_ADDRESS}`);
   console.log("Interval: 4 saatte bir");
-  console.log("Kaynaklar: BBC Turkce, NTV, Bloomberg HT, Dunya, Hurriyet Magazin, Milliyet Magazin, TRT Spor, Fanatik");
+  console.log("Kaynaklar: BBC Turkce, NTV, Bloomberg HT, Dunya, Hurriyet Magazin, Milliyet Magazin, Hurriyet Spor, Sabah Spor");
   console.log("--------------------------------------");
 
   await runCycle();
