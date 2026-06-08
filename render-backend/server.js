@@ -3,7 +3,7 @@ const cron = require('node-cron');
 const Anthropic = require('@anthropic-ai/sdk');
 const { ethers } = require('ethers');
 
-const CONTRACT_ADDRESS = "0xeD60bA70921CE869824676ED5348D921C98f44Ee";
+const CONTRACT_ADDRESS = "0xe6e9E1824D2515Fa19097E3c899FA9DaC28B79A0";
 const RPC_URL = "https://rpc.testnet.arc.network";
 
 const PREDICT_ABI = [

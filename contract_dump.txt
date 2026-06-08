@@ -17,25 +17,13 @@ contract ArcPredict {
         mapping(address => bool) claimed;
     }
 
-    struct UserProfile {
-        string username;
-        uint256 totalBets;
-        uint256 wins;
-        uint256 losses;
-        uint256 totalWinnings;
-        bool exists;
-    }
-
     uint256 public predictionCount;
     mapping(uint256 => Prediction) public predictions;
-    mapping(address => UserProfile) public profiles;
-    mapping(string => address) public usernameToAddress;
 
     event PredictionCreated(uint256 indexed id, string question, uint256 deadline);
     event BetPlaced(uint256 indexed id, address indexed bettor, bool isYes, uint256 amount);
     event PredictionResolved(uint256 indexed id, bool result);
     event WinningsClaimed(uint256 indexed id, address indexed winner, uint256 amount);
-    event UsernameSet(address indexed user, string username);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -44,33 +32,6 @@ contract ArcPredict {
 
     constructor() {
         owner = msg.sender;
-    }
-
-    function setUsername(string calldata username) external {
-        require(bytes(username).length >= 3, "Min 3 karakter");
-        require(bytes(username).length <= 20, "Max 20 karakter");
-        require(usernameToAddress[username] == address(0), "Bu kullanici adi alindi");
-        if (profiles[msg.sender].exists) {
-            string memory oldName = profiles[msg.sender].username;
-            if (bytes(oldName).length > 0) {
-                delete usernameToAddress[oldName];
-            }
-        }
-        profiles[msg.sender].username = username;
-        profiles[msg.sender].exists = true;
-        usernameToAddress[username] = msg.sender;
-        emit UsernameSet(msg.sender, username);
-    }
-
-    function getProfile(address user) external view returns (
-        string memory username,
-        uint256 totalBets,
-        uint256 wins,
-        uint256 losses,
-        uint256 totalWinnings
-    ) {
-        UserProfile storage p = profiles[user];
-        return (p.username, p.totalBets, p.wins, p.losses, p.totalWinnings);
     }
 
     function createPrediction(string calldata question, uint256 deadline) external onlyOwner {
@@ -89,6 +50,7 @@ contract ArcPredict {
         require(block.timestamp < p.deadline, "Betting closed");
         require(!p.resolved, "Already resolved");
         require(msg.value > 0, "Must send funds");
+
         if (isYes) {
             p.yesAmounts[msg.sender] += msg.value;
             p.totalYes += msg.value;
@@ -96,13 +58,7 @@ contract ArcPredict {
             p.noAmounts[msg.sender] += msg.value;
             p.totalNo += msg.value;
         }
-        if (p.yesAmounts[msg.sender] == msg.value && isYes) {
-            profiles[msg.sender].totalBets++;
-            profiles[msg.sender].exists = true;
-        } else if (p.noAmounts[msg.sender] == msg.value && !isYes) {
-            profiles[msg.sender].totalBets++;
-            profiles[msg.sender].exists = true;
-        }
+
         emit BetPlaced(predictionId, msg.sender, isYes, msg.value);
     }
 
@@ -121,9 +77,11 @@ contract ArcPredict {
         require(predictionId < predictionCount, "Invalid prediction");
         require(p.resolved, "Not resolved yet");
         require(!p.claimed[msg.sender], "Already claimed");
+
         uint256 userBet;
         uint256 winnerPool;
         uint256 totalPool = p.totalYes + p.totalNo;
+
         if (p.result) {
             userBet = p.yesAmounts[msg.sender];
             winnerPool = p.totalYes;
@@ -131,31 +89,14 @@ contract ArcPredict {
             userBet = p.noAmounts[msg.sender];
             winnerPool = p.totalNo;
         }
+
         require(userBet > 0, "No winning bet");
         p.claimed[msg.sender] = true;
-        profiles[msg.sender].wins++;
-        profiles[msg.sender].exists = true;
+
+        // 2% platform fee
         uint256 payout = (userBet * totalPool * 98) / (winnerPool * 100);
-        profiles[msg.sender].totalWinnings += payout;
         payable(msg.sender).transfer(payout);
         emit WinningsClaimed(predictionId, msg.sender, payout);
-    }
-
-    function recordLoss(uint256 predictionId) external {
-        Prediction storage p = predictions[predictionId];
-        require(predictionId < predictionCount, "Invalid prediction");
-        require(p.resolved, "Not resolved yet");
-        require(!p.claimed[msg.sender], "Already claimed");
-        uint256 userBet;
-        if (p.result) {
-            userBet = p.noAmounts[msg.sender];
-        } else {
-            userBet = p.yesAmounts[msg.sender];
-        }
-        require(userBet > 0, "No losing bet");
-        p.claimed[msg.sender] = true;
-        profiles[msg.sender].losses++;
-        profiles[msg.sender].exists = true;
     }
 
     function getPrediction(uint256 id) external view returns (
@@ -171,11 +112,7 @@ contract ArcPredict {
         return (p.question, p.deadline, p.resolved, p.result, p.totalYes, p.totalNo);
     }
 
-    function getUserBets(uint256 predictionId, address user) external view returns (
-        uint256 yesAmount,
-        uint256 noAmount,
-        bool claimed
-    ) {
+    function getUserBets(uint256 predictionId, address user) external view returns (uint256 yesAmount, uint256 noAmount, bool claimed) {
         Prediction storage p = predictions[predictionId];
         return (p.yesAmounts[user], p.noAmounts[user], p.claimed[user]);
     }
