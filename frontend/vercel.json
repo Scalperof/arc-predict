@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "buildCommand": null,
+  "outputDirectory": ".",
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/auto-predict",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/auto-resolve",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}

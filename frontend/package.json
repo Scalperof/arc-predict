@@ -1,0 +1,9 @@
+{
+  "name": "arc-predict-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "ethers": "^6.11.1"
+  }
+}
