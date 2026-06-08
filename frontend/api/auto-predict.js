@@ -9,17 +9,21 @@ const ABI = [
 const RPC_URL = "https://rpc.testnet.arc.network";
 
 const RSS_SOURCES = {
-  siyasi: [
-    "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://www.hurriyet.com.tr/rss/anasayfa"
+  siyaset: [
+    "https://feeds.bbci.co.uk/turkish/rss.xml",
+    "https://www.ntv.com.tr/gundem.rss"
   ],
-  futbol: [
-    "https://www.theguardian.com/football/rss",
-    "https://www.bbc.co.uk/sport/football/rss.xml"
+  ekonomi: [
+    "https://www.bloomberght.com/rss",
+    "https://www.dunya.com/rss"
   ],
-  kripto: [
-    "https://cointelegraph.com/rss",
-    "https://www.aljazeera.com/xml/rss/all.xml"
+  magazin: [
+    "https://www.hurriyet.com.tr/rss/magazin",
+    "https://www.milliyet.com.tr/rss/rssNew/magazin_rss.xml"
+  ],
+  spor: [
+    "https://www.trtspor.com.tr/rss",
+    "https://www.fanatik.com.tr/rss"
   ]
 };
 
@@ -55,42 +59,49 @@ async function fetchRSS(url) {
 }
 
 async function fetchAllNews() {
-  const [bbc, hurriyet, goal, bbcSport, cointelegraph, aljazeera] = await Promise.all([
-    fetchRSS(RSS_SOURCES.siyasi[0]),
-    fetchRSS(RSS_SOURCES.siyasi[1]),
-    fetchRSS(RSS_SOURCES.futbol[0]),
-    fetchRSS(RSS_SOURCES.futbol[1]),
-    fetchRSS(RSS_SOURCES.kripto[0]),
-    fetchRSS(RSS_SOURCES.kripto[1])
+  const [bbcTr, ntv, bloomberght, dunya, hurriyetMag, milliyetMag, trtSpor, fanatik] = await Promise.all([
+    fetchRSS(RSS_SOURCES.siyaset[0]),
+    fetchRSS(RSS_SOURCES.siyaset[1]),
+    fetchRSS(RSS_SOURCES.ekonomi[0]),
+    fetchRSS(RSS_SOURCES.ekonomi[1]),
+    fetchRSS(RSS_SOURCES.magazin[0]),
+    fetchRSS(RSS_SOURCES.magazin[1]),
+    fetchRSS(RSS_SOURCES.spor[0]),
+    fetchRSS(RSS_SOURCES.spor[1])
   ]);
   return {
-    siyasi: [...bbc, ...hurriyet].slice(0, 10),
-    futbol: [...goal, ...bbcSport].slice(0, 10),
-    kripto: [...cointelegraph, ...aljazeera].slice(0, 10)
+    siyaset: [...bbcTr, ...ntv].slice(0, 10),
+    ekonomi: [...bloomberght, ...dunya].slice(0, 10),
+    magazin: [...hurriyetMag, ...milliyetMag].slice(0, 10),
+    spor: [...trtSpor, ...fanatik].slice(0, 10)
   };
 }
 
 async function generateQuestions(news) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const prompt = `Asagidaki haberlere dayanarak tam olarak 6 adet Evet/Hayir tahmin sorusu uret:
-- 2 siyasi tahmin sorusu
-- 2 futbol tahmini sorusu
-- 2 kripto tahmini sorusu
+  const prompt = `Asagidaki haberlere dayanarak tam olarak 8 adet Evet/Hayir tahmin sorusu uret:
+- 2 siyaset tahmini
+- 2 ekonomi tahmini
+- 2 magazin tahmini
+- 2 spor tahmini
 
 Kurallar:
 - Her soru 48 saat icinde netlesebilir olmali
 - Spesifik, olculebilir ve kisa olmali
-- YALNIZCA 6 soruyu yaz, her biri yeni satirda, "1." "2." seklinde numarayla baslamali
+- YALNIZCA 8 soruyu yaz, her biri yeni satirda, "1." "2." seklinde numarayla baslamali
 - Baska hicbir aciklama veya metin ekleme
 
-SIYASI HABERLER:
-${news.siyasi.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
+SIYASET HABERLERI:
+${news.siyaset.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
 
-FUTBOL HABERLERI:
-${news.futbol.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
+EKONOMI HABERLERI:
+${news.ekonomi.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
 
-KRIPTO HABERLERI:
-${news.kripto.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}`;
+MAGAZIN HABERLERI:
+${news.magazin.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
+
+SPOR HABERLERI:
+${news.spor.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}`;
 
   const response = await client.messages.create({
     model: "claude-opus-4-8",
@@ -103,7 +114,7 @@ ${news.kripto.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}`;
     .split('\n')
     .map(l => l.replace(/^\d+\.\s*/, '').trim())
     .filter(l => l.length > 10)
-    .slice(0, 6);
+    .slice(0, 8);
 }
 
 async function addPrediction(question, contract) {
@@ -130,9 +141,9 @@ module.exports = async function handler(req, res) {
   try {
     log.push('RSS kaynaklarindan haberler cekiliyor...');
     const news = await fetchAllNews();
-    log.push(`Siyasi: ${news.siyasi.length}, Futbol: ${news.futbol.length}, Kripto: ${news.kripto.length}`);
+    log.push(`Siyaset: ${news.siyaset.length}, Ekonomi: ${news.ekonomi.length}, Magazin: ${news.magazin.length}, Spor: ${news.spor.length}`);
 
-    if (!news.siyasi.length && !news.futbol.length && !news.kripto.length) {
+    if (!news.siyaset.length && !news.ekonomi.length && !news.magazin.length && !news.spor.length) {
       return res.status(200).json({ ok: false, message: 'Haber alinamadi', log });
     }
 
