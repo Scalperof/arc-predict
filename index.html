@@ -405,6 +405,7 @@
   <div class="wallet-info">
     <span id="networkBadge" class="network-badge" style="display:none">Arc Testnet</span>
     <span id="walletAddr" class="wallet-addr" style="display:none"></span>
+    <button id="profileBtn" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.55rem 1rem;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.9rem;margin-right:0.5rem" onclick="toggleProfile()">👤 Profil</button>
     <button id="connectBtn">MetaMask Bağla</button>
   </div>
 </header>
@@ -436,11 +437,40 @@
   </div>
 </main>
 
+<div id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:50;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:400px;position:relative">
+    <button onclick="toggleProfile()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+    <h2 style="margin-bottom:1.5rem;color:var(--accent2)">👤 Profilim</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem">
+      <div style="background:var(--surface2);border-radius:10px;padding:0.75rem;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent2)" id="profBets">—</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Toplam Bahis</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:0.75rem;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:#22c55e" id="profWins">—</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Kazanılan</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:0.75rem;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:#ef4444" id="profLosses">—</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Kaybedilen</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:0.75rem;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent2)" id="profWinnings">—</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Toplam Kazanç</div>
+      </div>
+    </div>
+    <div style="margin-bottom:0.5rem;font-size:0.85rem;color:var(--muted)">Kullanıcı Adı: <span id="profUsername" style="color:var(--text)">—</span></div>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem">
+      <input id="usernameInput" placeholder="Yeni kullanıcı adı" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;outline:none;font-size:0.9rem" />
+      <button onclick="saveUsername()" style="background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-weight:600;cursor:pointer">Kaydet</button>
+    </div>
+  </div>
+</div>
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────────────
-  const CONTRACT_ADDRESS = "0x564e247bB1faB36fa6b75DEfbB2DDbAa1B6cec45";
+  const CONTRACT_ADDRESS = "0xeD60bA70921CE869824676ED5348D921C98f44Ee";
   const ARC_CHAIN_ID = "0x4CEF52"; // 5042002 in hex
   const ARC_NETWORK = {
     chainId: ARC_CHAIN_ID,
@@ -458,6 +488,9 @@
     "function claimWinnings(uint256 predictionId) external",
     "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
     "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)",
+    "function setUsername(string username) external",
+    "function getProfile(address user) view returns (string username, uint256 totalBets, uint256 wins, uint256 losses, uint256 totalWinnings)",
+    "function recordLoss(uint256 predictionId) external",
     "event BetPlaced(uint256 indexed id, address indexed bettor, bool isYes, uint256 amount)",
     "event WinningsClaimed(uint256 indexed id, address indexed winner, uint256 amount)",
   ];
@@ -529,6 +562,7 @@
       document.getElementById("connectBtn").style.background = "rgba(34,197,94,0.2)";
 
       toast("Cüzdan bağlandı: " + shortAddr(userAddress), "success");
+      document.getElementById('profileBtn').style.display = 'inline';
       await loadPredictions();
     } catch (err) {
       toast("Bağlantı hatası: " + (err.message || err), "error");
@@ -714,7 +748,41 @@
       console.error(err);
     }
   }
+// ── PROFİL ──────────────────────────────────────────────────────────────────
+  let profileVisible = false;
 
+  function toggleProfile() {
+    const modal = document.getElementById('profileModal');
+    profileVisible = !profileVisible;
+    modal.style.display = profileVisible ? 'flex' : 'none';
+    if (profileVisible) loadProfile();
+  }
+
+  async function loadProfile() {
+    if (!contract) return;
+    try {
+      const p = await contract.getProfile(userAddress);
+      document.getElementById('profUsername').textContent = p[0] || '(belirlenmemiş)';
+      document.getElementById('profBets').textContent = p[1].toString();
+      document.getElementById('profWins').textContent = p[2].toString();
+      document.getElementById('profLosses').textContent = p[3].toString();
+      document.getElementById('profWinnings').textContent = (Number(p[4]) / 1e18).toFixed(4) + ' USDC';
+    } catch(e) { console.error(e); }
+  }
+
+  async function saveUsername() {
+    const name = document.getElementById('usernameInput').value.trim();
+    if (!name) return;
+    try {
+      toast('İşlem gönderiliyor...');
+      const tx = await contract.setUsername(name);
+      await tx.wait();
+      toast('Kullanıcı adı kaydedildi!', 'success');
+      await loadProfile();
+    } catch(e) {
+      toast('Hata: ' + (e?.reason || e?.message || 'Bilinmiyor'), 'error');
+    }
+  }
   // ── AUTO RECONNECT ───────────────────────────────────────────────────────────
   window.addEventListener("load", async () => {
     if (!window.ethereum) return;
