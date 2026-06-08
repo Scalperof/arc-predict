@@ -1,1 +1,212 @@
-﻿
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arc Predict</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1a0a2e; --surface: #2d1b4e; --surface2: #3d2460;
+      --accent: #7c3aed; --accent2: #a855f7; --yes: #22c55e; --no: #ef4444;
+      --text: #e2d9f3; --muted: #9d8ec4; --border: #4c2a7a; --glow: rgba(124,58,237,0.4);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; background-image: radial-gradient(ellipse at 20% 10%, rgba(124,58,237,0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(168,85,247,0.1) 0%, transparent 50%); }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; background: rgba(26,10,46,0.85); }
+    .logo { display: flex; align-items: center; gap: 0.6rem; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: 0 0 20px var(--glow); }
+    .logo span { color: var(--accent2); }
+    #connectBtn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; padding: 0.55rem 1.3rem; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: opacity 0.2s, transform 0.1s; box-shadow: 0 0 16px var(--glow); }
+    #connectBtn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .wallet-info { display: flex; align-items: center; gap: 0.75rem; }
+    .wallet-addr { background: var(--surface); border: 1px solid var(--border); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.82rem; color: var(--muted); font-family: monospace; }
+    .network-badge { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    .hero h1 { font-size: 2.4rem; font-weight: 800; background: linear-gradient(135deg, #e2d9f3, var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.6rem; }
+    .hero p { color: var(--muted); font-size: 1.05rem; }
+    .stats-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; text-align: center; }
+    .stat-card .value { font-size: 1.6rem; font-weight: 700; color: var(--accent2); }
+    .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .section-title { font-size: 1.1rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; }
+    #predictions { display: flex; flex-direction: column; gap: 1rem; }
+    .pred-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; transition: border-color 0.2s, box-shadow 0.2s; }
+    .pred-card:hover { border-color: var(--accent); box-shadow: 0 0 24px rgba(124,58,237,0.2); }
+    .pred-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
+    .pred-question { font-size: 1.05rem; font-weight: 600; flex: 1; line-height: 1.4; }
+    .pred-badge { padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .badge-active { background: rgba(124,58,237,0.2); border: 1px solid var(--accent); color: var(--accent2); }
+    .badge-resolved-yes { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: #22c55e; }
+    .badge-resolved-no { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; }
+    .badge-closed { background: rgba(157,142,196,0.15); border: 1px solid rgba(157,142,196,0.3); color: var(--muted); }
+    .pred-meta { display: flex; gap: 1.5rem; font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; }
+    .progress-container { margin-bottom: 1.25rem; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.4rem; }
+    .label-yes { color: var(--yes); font-weight: 600; }
+    .label-no { color: var(--no); font-weight: 600; }
+    .progress-bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--yes), #86efac); transition: width 0.5s ease; }
+    .bet-row { display: flex; gap: 0.75rem; align-items: center; }
+    .bet-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.55rem 0.9rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    .bet-input:focus { border-color: var(--accent); }
+    .bet-input::placeholder { color: var(--muted); }
+    .btn-yes, .btn-no, .btn-claim { border: none; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem; transition: opacity 0.2s, transform 0.1s; white-space: nowrap; }
+    .btn-yes { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+    .btn-no { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+    .btn-claim { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; width: 100%; padding: 0.7rem; }
+    .btn-yes:hover, .btn-no:hover, .btn-claim:hover { opacity: 0.85; transform: translateY(-1px); }
+    .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; z-index: 100; }
+    .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1.2rem; font-size: 0.88rem; max-width: 320px; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .toast.success { border-color: rgba(34,197,94,0.5); }
+    .toast.error { border-color: rgba(239,68,68,0.5); color: #fca5a5; }
+    @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+    .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 0.4rem; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .your-bet-info { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔮</div>
+    Arc <span>Predict</span>
+  </div>
+  <div class="wallet-info">
+    <span id="networkBadge" class="network-badge" style="display:none">Arc Testnet</span>
+    <span id="walletAddr" class="wallet-addr" style="display:none"></span>
+    <button id="connectBtn">MetaMask Bağla</button>
+  </div>
+</header>
+<main>
+  <div class="hero">
+    <h1>Geleceği Tahmin Et, Kazan</h1>
+    <p>Arc Blockchain üzerinde merkezi olmayan tahmin oyunu</p>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-card"><div class="value" id="statTotal">—</div><div class="label">Toplam Tahmin</div></div>
+    <div class="stat-card"><div class="value" id="statActive">—</div><div class="label">Aktif Bahis</div></div>
+    <div class="stat-card"><div class="value" id="statPool">—</div><div class="label">Toplam Havuz</div></div>
+  </div>
+  <div class="section-title">Aktif Tahminler</div>
+  <div id="predictions">
+    <div class="empty-state">MetaMask bağlandıktan sonra tahminler yüklenecek...</div>
+  </div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+  const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+  const ARC_CHAIN_ID = "0x4CEF52";
+  const ARC_NETWORK = { chainId: ARC_CHAIN_ID, chainName: "Arc Testnet", rpcUrls: ["https://rpc.testnet.arc.network"], nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, blockExplorerUrls: ["https://testnet.arcscan.app"] };
+  const ABI = [
+    "function predictionCount() view returns (uint256)",
+    "function placeBet(uint256 predictionId, bool isYes) payable",
+    "function claimWinnings(uint256 predictionId) external",
+    "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
+    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)"
+  ];
+  let provider, signer, contract, userAddress;
+  function toast(msg, type="info") { const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toastContainer").appendChild(el); setTimeout(()=>el.remove(),4000); }
+  function shortAddr(addr) { return addr.slice(0,6)+"..."+addr.slice(-4); }
+  function parseEther(val) { return ethers.parseEther(String(val)); }
+  function timeLeft(deadline) { const now=Math.floor(Date.now()/1000),diff=Number(deadline)-now; if(diff<=0)return "Süresi doldu"; const d=Math.floor(diff/86400),h=Math.floor((diff%86400)/3600),m=Math.floor((diff%3600)/60); if(d>0)return `${d}g ${h}s kaldı`; if(h>0)return `${h}s ${m}d kaldı`; return `${m}d kaldı`; }
+  document.getElementById("connectBtn").addEventListener("click", connectWallet);
+  async function connectWallet() {
+    if(!window.ethereum){toast("MetaMask bulunamadı!","error");return;}
+    try {
+      const accounts=await window.ethereum.request({method:"eth_requestAccounts"});
+      userAddress=accounts[0];
+      await switchToArc();
+      provider=new ethers.BrowserProvider(window.ethereum);
+      signer=await provider.getSigner();
+      contract=new ethers.Contract(CONTRACT_ADDRESS,ABI,signer);
+      document.getElementById("walletAddr").textContent=shortAddr(userAddress);
+      document.getElementById("walletAddr").style.display="inline";
+      document.getElementById("networkBadge").style.display="inline";
+      document.getElementById("connectBtn").textContent="Bağlandı ✓";
+      document.getElementById("connectBtn").style.background="rgba(34,197,94,0.2)";
+      toast("Cüzdan bağlandı: "+shortAddr(userAddress),"success");
+      await loadPredictions();
+    } catch(err){toast("Bağlantı hatası: "+(err.message||err),"error");}
+  }
+  async function switchToArc() {
+    try { await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC_CHAIN_ID}]}); }
+    catch(e) { if(e.code===4902){try{await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC_NETWORK]});}catch(a){const m=(a?.message||"").toLowerCase();if(a?.code===-32602||m.includes("already")||m.includes("exists"))return;throw a;}}else throw e; }
+  }
+  async function loadPredictions() {
+    const container=document.getElementById("predictions");
+    container.innerHTML=`<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    try {
+      const count=Number(await contract.predictionCount());
+      document.getElementById("statTotal").textContent=count;
+      if(count===0){container.innerHTML=`<div class="empty-state">Henüz tahmin yok.</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
+      const items=await Promise.all(Array.from({length:count},(_,i)=>contract.getPrediction(i).then(async p=>{const userBets=await contract.getUserBets(i,userAddress);return{id:i,...parseP(p),userBets};})));
+      const now=Math.floor(Date.now()/1000);
+      const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);
+      const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);
+      document.getElementById("statActive").textContent=active.length;
+      document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";
+      container.innerHTML="";
+      items.reverse().forEach(p=>container.appendChild(buildCard(p)));
+    } catch(err){container.innerHTML=`<div class="empty-state">Yükleme hatası.</div>`;console.error(err);}
+  }
+  function parseP([question,deadline,resolved,result,totalYes,totalNo]){return{question,deadline,resolved,result,totalYes,totalNo};}
+  function buildCard(p) {
+    const now=Math.floor(Date.now()/1000),isOpen=!p.resolved&&Number(p.deadline)>now;
+    const yesN=Number(BigInt(p.totalYes)),noN=Number(BigInt(p.totalNo)),total=yesN+noN;
+    const yesPct=total>0?Math.round((yesN/total)*100):50;
+    const [userYes,userNo,userClaimed]=p.userBets;
+    const hasWon=p.resolved&&((p.result&&Number(BigInt(userYes))>0)||(!p.result&&Number(BigInt(userNo))>0));
+    let badgeClass="badge-active",badgeText="AÇIK";
+    if(p.resolved){badgeClass=p.result?"badge-resolved-yes":"badge-resolved-no";badgeText="SONUÇ: "+(p.result?"EVET ✓":"HAYIR ✗");}
+    else if(!isOpen){badgeClass="badge-closed";badgeText="KAPALI";}
+    const card=document.createElement("div");
+    card.className="pred-card";
+    card.innerHTML=`
+      <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><span class="pred-badge ${badgeClass}">${badgeText}</span></div>
+      <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} USDC havuz</span><span>#${p.id}</span></div>
+      <div class="progress-container">
+        <div class="progress-labels"><span class="label-yes">EVET ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% HAYIR (${(noN/1e18).toFixed(4)})</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${yesPct}%"></div></div>
+      </div>
+      ${isOpen?`<div class="bet-row"><input class="bet-input" id="amt-${p.id}" type="number" min="0.0001" step="0.0001" placeholder="Miktar (USDC)" /><button class="btn-yes" onclick="placeBet(${p.id},true)">✅ Evet</button><button class="btn-no" onclick="placeBet(${p.id},false)">❌ Hayır</button></div>${Number(BigInt(userYes))>0?`<div class="your-bet-info">Evet bahsiniz: ${(Number(BigInt(userYes))/1e18).toFixed(4)} USDC</div>`:""}${Number(BigInt(userNo))>0?`<div class="your-bet-info">Hayır bahsiniz: ${(Number(BigInt(userNo))/1e18).toFixed(4)} USDC</div>`:""}`:""} 
+      ${hasWon&&!userClaimed?`<button class="btn-claim" onclick="claimWinnings(${p.id})">🏆 Kazancını Al</button>`:""}
+      ${hasWon&&userClaimed?`<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>`:""}
+    `;
+    return card;
+  }
+  function escHtml(str){return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+  async function placeBet(predictionId,isYes) {
+    if(!contract){toast("Önce cüzdanı bağla!","error");return;}
+    const input=document.getElementById(`amt-${predictionId}`);
+    const amount=parseFloat(input.value);
+    if(!amount||amount<=0){toast("Geçerli bir miktar gir","error");return;}
+    try {
+      toast("İşlem gönderiliyor...");
+      const tx=await contract.placeBet(predictionId,isYes,{value:parseEther(amount.toString())});
+      toast("Onay bekleniyor...");
+      await tx.wait();
+      toast(`Bahis yerleştirildi! ${amount} USDC ${isYes?"EVET":"HAYIR"}`,"success");
+      input.value="";
+      await loadPredictions();
+    } catch(err){toast("İşlem hatası: "+(err?.reason||err?.message||"Bilinmiyor"),"error");}
+  }
+  async function claimWinnings(predictionId) {
+    if(!contract){toast("Önce cüzdanı bağla!","error");return;}
+    try {
+      toast("Kazanç alınıyor...");
+      const tx=await contract.claimWinnings(predictionId);
+      await tx.wait();
+      toast("Kazanç başarıyla alındı! 🎉","success");
+      await loadPredictions();
+    } catch(err){toast("Hata: "+(err?.reason||err?.message||"Bilinmiyor"),"error");}
+  }
+  window.addEventListener("load",async()=>{if(!window.ethereum)return;try{const accounts=await window.ethereum.request({method:"eth_accounts"});if(accounts.length>0)await connectWallet();}catch(_){}});
+  window.ethereum?.on("accountsChanged",()=>location.reload());
+  window.ethereum?.on("chainChanged",()=>location.reload());
+</script>
+</body>
+</html>﻿
