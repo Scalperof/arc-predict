@@ -2,7 +2,7 @@ require('dotenv').config();
 const Anthropic = require('@anthropic-ai/sdk');
 const { ethers } = require('ethers');
 
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const CONTRACT_ADDRESS = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
 const ABI = [
   "function createPrediction(string question, uint256 deadline) external",
   "function predictionCount() view returns (uint256)"

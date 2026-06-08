@@ -1,7 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { ethers } = require('ethers');
 
-const CONTRACT_ADDRESS = "0x564e247bB1faB36fa6b75DEfbB2DDbAa1B6cec45";
+const CONTRACT_ADDRESS = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
 const ABI = [
   "function createPrediction(string question, uint256 deadline) external",
   "function predictionCount() view returns (uint256)"
