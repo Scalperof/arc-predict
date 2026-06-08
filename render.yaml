@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: arc-predict-backend
+    env: node
+    rootDir: render-backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

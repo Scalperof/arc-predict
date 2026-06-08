@@ -1,0 +1,17 @@
+{
+  "name": "arc-predict-backend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "ethers": "^6.11.1",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3"
+  }
+}
