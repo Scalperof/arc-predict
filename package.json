@@ -1,0 +1,22 @@
+{
+  "name": "arc-predict",
+  "version": "1.0.0",
+  "description": "On-chain prediction game on Arc blockchain",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run deploy.js --network arc-testnet",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "auto-predict": "node auto-predict.js",
+    "auto-resolve": "node auto-resolve.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.51.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.0"
+  }
+}
