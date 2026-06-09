@@ -66,6 +66,7 @@
     .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 0.4rem; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .your-bet-info { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+    .price-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
     @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } }
   </style>
 </head>
@@ -109,6 +110,31 @@
     "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)"
   ];
   let provider, signer, contract, userAddress;
+  let cryptoPrices = {};
+  async function loadCryptoPrices() {
+    try {
+      const res = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd',
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      cryptoPrices = {
+        BTC: data.bitcoin?.usd,
+        ETH: data.ethereum?.usd,
+        SOL: data.solana?.usd
+      };
+    } catch (_) { /* sessizce devam */ }
+  }
+
+  function detectCoinFromQuestion(question) {
+    const q = question.toLowerCase();
+    if (q.includes('btc') || q.includes('bitcoin')) return 'BTC';
+    if (q.includes('eth') || q.includes('ethereum')) return 'ETH';
+    if (q.includes('sol') || q.includes('solana')) return 'SOL';
+    return null;
+  }
+
   function toast(msg, type="info") { const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toastContainer").appendChild(el); setTimeout(()=>el.remove(),4000); }
   function shortAddr(addr) { return addr.slice(0,6)+"..."+addr.slice(-4); }
   function parseEther(val) { return ethers.parseEther(String(val)); }
@@ -129,6 +155,7 @@
       document.getElementById("connectBtn").textContent="Bağlandı ✓";
       document.getElementById("connectBtn").style.background="rgba(34,197,94,0.2)";
       toast("Cüzdan bağlandı: "+shortAddr(userAddress),"success");
+      loadCryptoPrices();
       await loadPredictions();
     } catch(err){toast("Bağlantı hatası: "+(err.message||err),"error");}
   }
@@ -167,7 +194,7 @@
     card.className="pred-card";
     card.innerHTML=`
       <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><span class="pred-badge ${badgeClass}">${badgeText}</span></div>
-      <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} USDC havuz</span><span>#${p.id}</span></div>
+      <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} USDC havuz</span><span>#${p.id}</span>${(()=>{const coin=detectCoinFromQuestion(p.question);const price=coin&&cryptoPrices[coin];return price?`<span class="price-badge">◈ Anlık fiyat: $${Number(price).toLocaleString('en-US')}</span>`:''})()}</div>
       <div class="progress-container">
         <div class="progress-labels"><span class="label-yes">EVET ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% HAYIR (${(noN/1e18).toFixed(4)})</span></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${yesPct}%"></div></div>

@@ -352,6 +352,13 @@ async function runAutoResolve() {
 const app = express();
 app.use(express.json());
 
+app.use((_req, res, next) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 // Manuel tetikleme endpointleri (test için)
