@@ -67,7 +67,12 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .your-bet-info { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
     .price-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
-    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } }
+    .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s; white-space: nowrap; }
+    .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .filter-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #fff; box-shadow: 0 0 12px var(--glow); }
+    .filter-count { opacity: 0.75; font-size: 0.75rem; margin-left: 0.2rem; }
+    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } }
   </style>
 </head>
 <body>
@@ -92,7 +97,15 @@
     <div class="stat-card"><div class="value" id="statActive">—</div><div class="label">Aktif Bahis</div></div>
     <div class="stat-card"><div class="value" id="statPool">—</div><div class="label">Toplam Havuz</div></div>
   </div>
-  <div class="section-title">Aktif Tahminler</div>
+  <div class="section-title">Tahminler</div>
+  <div class="filter-bar" id="filterBar">
+    <button class="filter-btn active" data-cat="tumu" onclick="setFilter('tumu')">Tümü</button>
+    <button class="filter-btn" data-cat="siyaset" onclick="setFilter('siyaset')">🏛 Siyaset</button>
+    <button class="filter-btn" data-cat="ekonomi" onclick="setFilter('ekonomi')">📈 Ekonomi</button>
+    <button class="filter-btn" data-cat="magazin" onclick="setFilter('magazin')">🎬 Magazin</button>
+    <button class="filter-btn" data-cat="spor" onclick="setFilter('spor')">⚽ Spor</button>
+    <button class="filter-btn" data-cat="kripto" onclick="setFilter('kripto')">₿ Kripto</button>
+  </div>
   <div id="predictions">
     <div class="empty-state">MetaMask bağlandıktan sonra tahminler yüklenecek...</div>
   </div>
@@ -111,6 +124,54 @@
   ];
   let provider, signer, contract, userAddress;
   let cryptoPrices = {};
+  let allPredictions = [];
+  let activeCategory = 'tumu';
+
+  const CATEGORY_KEYWORDS = {
+    kripto: /bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|kripto|crypto|\bcoin\b|token|blockchain/,
+    spor:   /\bmaç\b|gol|\blig\b|şampiyon|futbol|basketbol|tenis|transfer|teknik direktör|antrenör|turnuva|skor|galibiy|mağlubiy|galatasaray|fenerbahçe|beşiktaş|trabzonspor|premier league|bundesliga|champions|uefa|fifa|\bnba\b|formula|atletiz|olimpiy|dünya kupası|roland garros|wimbledon|formula 1/,
+    magazin:/\bdizi\b|film|oyuncu|şarkıcı|albüm|konser|evlend|boşand|evlenecek|boşanacak|magazin|ünlü|moda|manken|hollywood|oscar|müzik|sahne|festival|doğum|reality|yarışma|instagram|sosyal medya/,
+    ekonomi:/ekonomi|borsa|enflasyon|faiz|merkez bankası|tcmb|işsizlik|büyüme|ihracat|ithalat|bütçe|vergi|hazine|\bbist\b|hisse|altın|piyasa|\bdöviz\b|\bkur\b|gsyih|resesyon|tüfe|üfe|banka|kredi|faiz oranı|\bdolar\b|\beuro\b/
+  };
+
+  function detectCategory(question) {
+    const q = question.toLowerCase();
+    for (const [cat, re] of Object.entries(CATEGORY_KEYWORDS)) {
+      if (re.test(q)) return cat;
+    }
+    return 'siyaset';
+  }
+
+  function setFilter(cat) {
+    activeCategory = cat;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.cat === cat);
+    });
+    renderFiltered();
+  }
+
+  function renderFiltered() {
+    const container = document.getElementById('predictions');
+    const filtered = activeCategory === 'tumu'
+      ? allPredictions
+      : allPredictions.filter(p => detectCategory(p.question) === activeCategory);
+    container.innerHTML = '';
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state">Bu kategoride tahmin bulunamadı.</div>`;
+      return;
+    }
+    filtered.forEach(p => container.appendChild(buildCard(p)));
+  }
+
+  function updateFilterCounts() {
+    document.querySelectorAll('.filter-btn[data-cat]').forEach(btn => {
+      const cat = btn.dataset.cat;
+      const count = cat === 'tumu' ? allPredictions.length : allPredictions.filter(p => detectCategory(p.question) === cat).length;
+      const existing = btn.querySelector('.filter-count');
+      if (existing) existing.remove();
+      if (count > 0) btn.insertAdjacentHTML('beforeend', `<span class="filter-count">${count}</span>`);
+    });
+  }
   async function loadCryptoPrices() {
     try {
       const res = await fetch(
@@ -176,8 +237,9 @@
       const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);
       document.getElementById("statActive").textContent=active.length;
       document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";
-      container.innerHTML="";
-      items.reverse().forEach(p=>container.appendChild(buildCard(p)));
+      allPredictions=items.slice().reverse();
+      updateFilterCounts();
+      renderFiltered();
     } catch(err){container.innerHTML=`<div class="empty-state">Yükleme hatası.</div>`;console.error(err);}
   }
   function parseP([question,deadline,resolved,result,totalYes,totalNo]){return{question,deadline,resolved,result,totalYes,totalNo};}
