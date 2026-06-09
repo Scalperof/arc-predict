@@ -10,6 +10,8 @@ const ABI = [
 const RPC_URL = "https://rpc.testnet.arc.network";
 const INTERVAL_MS = 4 * 60 * 60 * 1000;
 
+const COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true&include_7d_change=true";
+
 const RSS_SOURCES = {
   siyaset: [
     "https://feeds.bbci.co.uk/turkce/rss.xml",
@@ -61,6 +63,37 @@ async function fetchRSS(url) {
   }
 }
 
+async function fetchCryptoPrices() {
+  try {
+    const res = await fetch(COINGECKO_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ArcPredict/1.0)' },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return {
+      BTC: {
+        price: data.bitcoin?.usd,
+        change24h: data.bitcoin?.usd_24h_change?.toFixed(2),
+        change7d: data.bitcoin?.usd_7d_change?.toFixed(2)
+      },
+      ETH: {
+        price: data.ethereum?.usd,
+        change24h: data.ethereum?.usd_24h_change?.toFixed(2),
+        change7d: data.ethereum?.usd_7d_change?.toFixed(2)
+      },
+      SOL: {
+        price: data.solana?.usd,
+        change24h: data.solana?.usd_24h_change?.toFixed(2),
+        change7d: data.solana?.usd_7d_change?.toFixed(2)
+      }
+    };
+  } catch (err) {
+    console.warn(`    [UYARI] CoinGecko verisi alinamadi: ${err.message}`);
+    return null;
+  }
+}
+
 async function fetchAllNews() {
   const [bbcTr, ntv, bloomberght, dunya, hurriyetMag, milliyetMag, trtSpor, fanatik] = await Promise.all([
     fetchRSS(RSS_SOURCES.siyaset[0]),
@@ -81,19 +114,34 @@ async function fetchAllNews() {
   };
 }
 
-async function generateQuestions(news) {
+function formatCryptoContext(crypto) {
+  if (!crypto) return '- (veri alinamadi)';
+  const lines = [];
+  for (const [coin, d] of Object.entries(crypto)) {
+    if (d.price) {
+      lines.push(`- ${coin}: $${d.price.toLocaleString('en-US')} (24s: ${d.change24h}%, 7g: ${d.change7d}%)`);
+    }
+  }
+  return lines.join('\n') || '- (veri alinamadi)';
+}
+
+async function generateQuestions(news, crypto) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const prompt = `Asagidaki haberlere dayanarak tam olarak 8 adet Evet/Hayir tahmin sorusu uret:
+  const cryptoSection = formatCryptoContext(crypto);
+
+  const prompt = `Asagidaki haber ve kripto fiyat verilerine dayanarak tam olarak 10 adet Evet/Hayir tahmin sorusu uret:
 - 2 siyaset tahmini
 - 2 ekonomi tahmini
 - 2 magazin tahmini
 - 2 spor tahmini
+- 2 kripto para tahmini
 
 Kurallar:
 - Her soru 48 saat icinde netlesebilir olmali
 - Spesifik, olculebilir ve kisa olmali
-- YALNIZCA 8 soruyu yaz, her biri yeni satirda, "1." "2." seklinde numarayla baslamali
+- Kripto sorulari: mevcut fiyati referans alarak "X coin 48 saat icerisinde Y dolar seviyesini asacak mi?" formatinda olmali
+- YALNIZCA 10 soruyu yaz, her biri yeni satirda, "1." "2." seklinde numarayla baslamali
 - Baska hicbir aciklama veya metin ekleme
 
 SIYASET HABERLERI:
@@ -106,11 +154,14 @@ MAGAZIN HABERLERI:
 ${news.magazin.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
 
 SPOR HABERLERI:
-${news.spor.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}`;
+${news.spor.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}
+
+KRIPTO FIYATLARI (anlik):
+${cryptoSection}`;
 
   const response = await client.messages.create({
     model: "claude-opus-4-8",
-    max_tokens: 512,
+    max_tokens: 640,
     messages: [{ role: "user", content: prompt }]
   });
 
@@ -119,7 +170,7 @@ ${news.spor.map(t => `- ${t}`).join('\n') || '- (veri alinamadi)'}`;
     .split('\n')
     .map(l => l.replace(/^\d+\.\s*/, '').trim())
     .filter(l => l.length > 10)
-    .slice(0, 8);
+    .slice(0, 10);
 }
 
 async function addPrediction(question, contract) {
@@ -132,17 +183,20 @@ async function addPrediction(question, contract) {
 async function runCycle() {
   console.log(`\n[${new Date().toISOString()}] Dongu baslatiliyor...`);
   try {
-    console.log("  1/3 RSS kaynaklarindan haberler cekiliyor...");
-    const news = await fetchAllNews();
+    console.log("  1/3 RSS haberleri ve kripto fiyatlari cekiliyor...");
+    const [news, crypto] = await Promise.all([fetchAllNews(), fetchCryptoPrices()]);
     console.log(`    Siyaset: ${news.siyaset.length}, Ekonomi: ${news.ekonomi.length}, Magazin: ${news.magazin.length}, Spor: ${news.spor.length} haber alindi.`);
+    if (crypto) {
+      console.log(`    Kripto: BTC=$${crypto.BTC?.price?.toLocaleString('en-US')} ETH=$${crypto.ETH?.price?.toLocaleString('en-US')} SOL=$${crypto.SOL?.price?.toLocaleString('en-US')}`);
+    }
 
-    if (!news.siyaset.length && !news.ekonomi.length && !news.magazin.length && !news.spor.length) {
-      console.log("  Hic haber alinamadi, atlandi.");
+    if (!news.siyaset.length && !news.ekonomi.length && !news.magazin.length && !news.spor.length && !crypto) {
+      console.log("  Hic veri alinamadi, atlandi.");
       return;
     }
 
-    console.log("  2/3 Claude ile 6 tahmin sorusu uretiliyor...");
-    const questions = await generateQuestions(news);
+    console.log("  2/3 Claude ile 10 tahmin sorusu uretiliyor...");
+    const questions = await generateQuestions(news, crypto);
     if (!questions.length) { console.log("  Sorular uretilemedi, atlandi."); return; }
     console.log(`  ${questions.length} soru uretildi:`);
     questions.forEach((q, i) => console.log(`    ${i + 1}. ${q}`));
@@ -175,7 +229,7 @@ async function main() {
   console.log("Arc Predict - Otomatik Tahmin Sistemi");
   console.log(`Contract: ${CONTRACT_ADDRESS}`);
   console.log("Interval: 4 saatte bir");
-  console.log("Kaynaklar: BBC Turkce, NTV, Bloomberg HT, Dunya, Hurriyet Magazin, Milliyet Magazin, Hurriyet Spor, Sabah Spor");
+  console.log("Kaynaklar: BBC Turkce, NTV, Bloomberg HT, Dunya, Hurriyet Magazin, Milliyet Magazin, Hurriyet Spor, Sabah Spor, CoinGecko (BTC/ETH/SOL)");
   console.log("--------------------------------------");
 
   await runCycle();
