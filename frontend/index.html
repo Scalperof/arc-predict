@@ -268,6 +268,7 @@
   let provider, signer, contract, wcContract, userAddress;
   let cryptoPrices = {};
   let allPredictions = [];
+  let allMatches = [];
   let activeCategory = 'tumu';
 
   const CATEGORY_KEYWORDS = {
@@ -487,6 +488,7 @@
       document.getElementById('statMatchOpen').textContent = openCount;
       document.getElementById('statMatchPool').textContent = (totalPool/1e18).toFixed(2) + ' USDC';
 
+      allMatches = items;
       container.innerHTML = '';
       items.forEach(m => container.appendChild(buildMatchCard(m)));
     } catch(err) { container.innerHTML = `<div class="empty-state">Yükleme hatası.</div>`; console.error(err); }
@@ -541,7 +543,7 @@
       <div class="match-meta">
         <span class="match-badge ${badgeClass}">${statusText}</span>
         <span>📅 ${kickoffStr}</span>
-        <span>⏱ ${matchTimeLabel(m.kickoff)}</span>
+        ${!m.resolved ? `<span>⏱ ${matchTimeLabel(m.kickoff)}</span>` : ''}
         <span>💰 ${(Number(totalPool)/1e18).toFixed(3)} USDC havuz</span>
       </div>
       ${badgeHtml}
@@ -568,7 +570,7 @@
       ${Number(m.userAway)>0 ? `<div class="your-bet-info">Deplasman bahsiniz: ${(Number(m.userAway)/1e18).toFixed(4)} USDC</div>` : ''}
       ${hasWon && !m.claimed ? `<button class="btn-claim" style="margin-top:0.75rem" onclick="claimMatch(${m.id})">🏆 Kazancını Al</button>` : ''}
       ${hasWon && m.claimed ? `<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>` : ''}
-      <button class="btn-share" onclick="openShareMatch(${m.id},'${escHtml(m.homeTeam)}','${escHtml(m.awayTeam)}')">📤 Paylaş</button>
+      <button class="btn-share" onclick="openShareMatch(${m.id})">📤 Paylaş</button>
     `;
     return card;
   }
@@ -602,19 +604,23 @@
   }
 
   // ── LEADERBOARD ────────────────────────────────────────────────────────────
-  let leaderboardLoaded = false;
+  let leaderboardLastLoad = 0;
   async function loadLeaderboard() {
-    if (leaderboardLoaded) return;
+    const now = Date.now();
+    if (now - leaderboardLastLoad < 60000) return; // 60s TTL önbellek
+    leaderboardLastLoad = now;
     const container = document.getElementById('leaderboardContainer');
     container.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
     try {
       const res = await fetch('/api/leaderboard');
       const data = await res.json();
       if (!data.ok || !data.leaderboard?.length) {
+        document.getElementById('lbStatPlayers').textContent = '0';
+        document.getElementById('lbStatTopWin').textContent = '0.00 USDC';
+        document.getElementById('lbStatAvgAcc').textContent = '—';
         container.innerHTML = `<div class="empty-state">Henüz liderlik verisi yok.</div>`;
         return;
       }
-      leaderboardLoaded = true;
       const lb = data.leaderboard;
       document.getElementById('lbStatPlayers').textContent = lb.length;
       document.getElementById('lbStatTopWin').textContent = lb[0].totalWinnings.toFixed(2) + ' USDC';
@@ -720,7 +726,8 @@
       const totalIn = allItems.reduce((s, x) => s + x.userBetTotal, 0);
       const totalOut = allItems.filter(x => x.status === 'win').reduce((s, x) => s + x.winnings, 0);
       const netPnl = totalOut - totalIn;
-      const acc = totalBets > 0 ? Math.round((wins / allItems.filter(x => x.status !== 'pending').length || 1) * 100) : 0;
+      const resolvedBets = allItems.filter(x => x.status !== 'pending');
+      const acc = resolvedBets.length > 0 ? Math.round((wins / resolvedBets.length) * 100) : 0;
 
       document.getElementById('profTotalBets').textContent = totalBets;
       document.getElementById('profWins').textContent = wins;
@@ -763,8 +770,12 @@
     document.getElementById('shareModal').style.display = 'flex';
   }
 
-  function openShareMatch(id, home, away) {
-    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${home} vs ${away}\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n💰 USDC ile oyna, kazan!\n\n🔗 arc-predict.vercel.app\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+  function openShareMatch(id) {
+    const m = allMatches[id];
+    if (!m) return;
+    const pool = (Number(m.poolHome + m.poolDraw + m.poolAway) / 1e18).toFixed(2);
+    const resultStr = m.resolved ? ['Ev Sahibi Kazandı','Beraberlik','Deplasman Kazandı'][m.result] + ' ✓' : 'Bahis Açık';
+    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Havuz: ${pool} USDC\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n🔗 arc-predict.vercel.app\n#ArcPredict #FIFAWorldCup2026 #Web3`;
     document.getElementById('shareTextPreview').textContent = shareText;
     document.getElementById('shareModal').style.display = 'flex';
   }

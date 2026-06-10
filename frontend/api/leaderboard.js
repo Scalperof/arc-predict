@@ -21,28 +21,38 @@ const WC_ABI = [
   "function getUserBet(uint256 matchId, address user) view returns (uint256 home, uint256 draw, uint256 away, bool claimed)"
 ];
 
-async function safeQueryFilter(contract, filter) {
-  try {
-    // Try limited block range first (last 100k blocks)
-    const provider = contract.runner?.provider || contract.provider;
-    let toBlock = 'latest';
-    let fromBlock = 0;
-    if (provider) {
-      try {
-        const latest = await provider.getBlockNumber();
-        fromBlock = Math.max(0, latest - 100000);
-        toBlock = latest;
-      } catch (_) {}
-    }
-    return await contract.queryFilter(filter, fromBlock, toBlock);
-  } catch (err) {
-    // Fallback: try from block 0 with no range
-    try {
-      return await contract.queryFilter(filter);
-    } catch (_) {
-      return [];
-    }
+// Arc testnet RPC eth_getLogs'u 10.000 blokluk aralikla sinirliyor —
+// kontrat deploy blogundan itibaren parcali tarama yapiyoruz.
+const DEPLOY_BLOCK = 46186575;
+const CHUNK = 10000;
+const BATCH = 10;
+
+async function getAllLogs(provider, address, latest) {
+  const ranges = [];
+  for (let b = DEPLOY_BLOCK; b <= latest; b += CHUNK) {
+    ranges.push([b, Math.min(b + CHUNK - 1, latest)]);
   }
+  const logs = [];
+  for (let i = 0; i < ranges.length; i += BATCH) {
+    const results = await Promise.all(
+      ranges.slice(i, i + BATCH).map(([fromBlock, toBlock]) =>
+        provider.getLogs({ address, fromBlock, toBlock }).catch(() => [])
+      )
+    );
+    results.forEach(r => logs.push(...r));
+  }
+  return logs;
+}
+
+function parseEvents(logs, iface, eventName) {
+  const out = [];
+  for (const log of logs) {
+    try {
+      const parsed = iface.parseLog(log);
+      if (parsed && parsed.name === eventName) out.push(parsed);
+    } catch { /* baska event, atla */ }
+  }
+  return out;
 }
 
 module.exports = async function handler(req, res) {
@@ -54,12 +64,15 @@ module.exports = async function handler(req, res) {
     const contract   = new ethers.Contract(CONTRACT_ADDRESS,    PREDICT_ABI, provider);
     const wcContract = new ethers.Contract(WC_CONTRACT_ADDRESS, WC_ABI,      provider);
 
-    // Collect unique bettors from events (with fallback)
-    const [predictBets, wcBets, wcClaimed] = await Promise.all([
-      safeQueryFilter(contract,   contract.filters.BetPlaced()),
-      safeQueryFilter(wcContract, wcContract.filters.BetPlaced()),
-      safeQueryFilter(wcContract, wcContract.filters.WinningsClaimed())
+    // Collect unique bettors from events (chunked log scan)
+    const latest = await provider.getBlockNumber();
+    const [predictLogs, wcLogs] = await Promise.all([
+      getAllLogs(provider, CONTRACT_ADDRESS, latest),
+      getAllLogs(provider, WC_CONTRACT_ADDRESS, latest)
     ]);
+    const predictBets = parseEvents(predictLogs, contract.interface,   'BetPlaced');
+    const wcBets      = parseEvents(wcLogs,      wcContract.interface, 'BetPlaced');
+    const wcClaimed   = parseEvents(wcLogs,      wcContract.interface, 'WinningsClaimed');
 
     // WC winnings from WinningsClaimed events
     const wcWinningsMap = {};

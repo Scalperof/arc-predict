@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/leaderboard.js": { "maxDuration": 60 },
+    "api/resolve-wc.js": { "maxDuration": 60 },
+    "api/auto-resolve.js": { "maxDuration": 60 }
+  },
   "crons": [
     { "path": "/api/auto-predict", "schedule": "0 6 * * *" },
     { "path": "/api/auto-resolve", "schedule": "0 20 * * *" },
