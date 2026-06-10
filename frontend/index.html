@@ -106,7 +106,45 @@
     .match-result.draw { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
     .match-result.away { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; }
     .odds-btn.disabled-look, .disabled-look { opacity: 0.55; cursor: not-allowed; }
-    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 1rem; font-size: 0.85rem; } .odds-value { font-size: 1rem; } }
+    /* ── Leaderboard ── */
+    .lb-table { width: 100%; border-collapse: collapse; }
+    .lb-table th { text-align: left; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+    .lb-table td { padding: 0.75rem; border-bottom: 1px solid rgba(76,42,122,0.3); font-size: 0.88rem; }
+    .lb-table tr:hover td { background: rgba(124,58,237,0.05); }
+    .lb-rank { font-weight: 800; color: var(--muted); font-size: 0.85rem; }
+    .lb-rank.top1 { color: #fbbf24; }
+    .lb-rank.top2 { color: #9ca3af; }
+    .lb-rank.top3 { color: #cd7c2f; }
+    .lb-addr { font-family: monospace; font-size: 0.82rem; color: var(--accent2); }
+    .lb-winnings { font-weight: 700; color: var(--yes); }
+    .lb-accuracy { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-weight: 700; }
+    .lb-accuracy.high { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .lb-accuracy.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .lb-accuracy.low { background: rgba(239,68,68,0.15); color: #ef4444; }
+    /* ── Profile / History ── */
+    .profile-header { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 2rem; }
+    .profile-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center; }
+    .profile-stat .val { font-size: 1.5rem; font-weight: 800; color: var(--accent2); }
+    .profile-stat .lbl { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+    .history-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center; }
+    .history-q { font-size: 0.9rem; font-weight: 600; line-height: 1.4; margin-bottom: 0.3rem; }
+    .history-meta { font-size: 0.78rem; color: var(--muted); }
+    .history-result { text-align: right; }
+    .result-win { color: var(--yes); font-weight: 700; }
+    .result-loss { color: var(--no); font-weight: 700; }
+    .result-pending { color: var(--muted); font-weight: 700; }
+    /* ── Share button ── */
+    .btn-share { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-top: 0.5rem; }
+    .btn-share:hover { border-color: var(--accent); color: var(--text); }
+    .share-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .share-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; max-width: 420px; width: 90%; }
+    .share-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; }
+    .share-text-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 0.82rem; color: var(--text); line-height: 1.5; margin-bottom: 1rem; white-space: pre-wrap; }
+    .share-btns { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn-twitter { background: #1da1f2; border: none; color: #fff; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem; }
+    .btn-farcaster { background: #8a63d2; border: none; color: #fff; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem; }
+    .btn-close-share { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 0.55rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.88rem; margin-left: auto; }
+    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 1rem; font-size: 0.85rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
 <body>
@@ -129,6 +167,8 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('tahminler')">🔮 Tahminler</button>
     <button class="tab-btn" onclick="switchTab('maclar')">⚽ Maçlar</button>
+    <button class="tab-btn" onclick="switchTab('liderlik')">🏆 Liderlik</button>
+    <button class="tab-btn" onclick="switchTab('profil')">👤 Profil</button>
   </div>
 
   <!-- TAB: TAHMİNLER -->
@@ -164,7 +204,46 @@
       <div class="empty-state">MetaMask bağlandıktan sonra maçlar yüklenecek...</div>
     </div>
   </div>
+
+  <!-- TAB: LİDERLİK TABLOSU -->
+  <div id="tab-liderlik" class="tab-panel">
+    <div class="stats-bar" style="margin-bottom:1.5rem">
+      <div class="stat-card"><div class="value" id="lbStatPlayers">—</div><div class="label">Toplam Oyuncu</div></div>
+      <div class="stat-card"><div class="value" id="lbStatTopWin">—</div><div class="label">En Yüksek Kazanç</div></div>
+      <div class="stat-card"><div class="value" id="lbStatAvgAcc">—</div><div class="label">Ort. Doğruluk</div></div>
+    </div>
+    <div class="section-title">En Çok Kazananlar</div>
+    <div id="leaderboardContainer">
+      <div class="empty-state">Liderlik tablosu yükleniyor...</div>
+    </div>
+  </div>
+
+  <!-- TAB: PROFİL / TAHMİN GEÇMİŞİ -->
+  <div id="tab-profil" class="tab-panel">
+    <div id="profileNotConnected" class="empty-state">MetaMask bağlandıktan sonra profiliniz görünecek.</div>
+    <div id="profileContent" style="display:none">
+      <div class="profile-header">
+        <div class="profile-stat"><div class="val" id="profTotalBets">—</div><div class="lbl">Toplam Bahis</div></div>
+        <div class="profile-stat"><div class="val" id="profWins">—</div><div class="lbl">Kazanılan</div></div>
+        <div class="profile-stat"><div class="val" id="profAccuracy">—</div><div class="lbl">Doğruluk</div></div>
+        <div class="profile-stat"><div class="val" id="profNetPnl">—</div><div class="lbl">Net Kar/Zarar</div></div>
+      </div>
+      <div class="section-title">Bahis Geçmişi</div>
+      <div id="historyContainer"></div>
+    </div>
+  </div>
 </main>
+<div id="shareModal" class="share-modal" style="display:none" onclick="if(event.target===this)closeShare()">
+  <div class="share-box">
+    <h3>📤 Paylaş</h3>
+    <div class="share-text-preview" id="shareTextPreview"></div>
+    <div class="share-btns">
+      <button class="btn-twitter" onclick="shareTwitter()">𝕏 Twitter</button>
+      <button class="btn-farcaster" onclick="shareFarcaster()">🟣 Farcaster</button>
+      <button class="btn-close-share" onclick="closeShare()">Kapat</button>
+    </div>
+  </div>
+</div>
 <div class="toast-container" id="toastContainer"></div>
 <script>
   const CONTRACT_ADDRESS    = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
@@ -176,7 +255,8 @@
     "function placeBet(uint256 predictionId, bool isYes) payable",
     "function claimWinnings(uint256 predictionId) external",
     "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
-    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)"
+    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)",
+    "function getProfile(address user) view returns (string username, uint256 totalBets, uint256 wins, uint256 losses, uint256 totalWinnings)"
   ];
   const WC_ABI = [
     "function matchCount() view returns (uint256)",
@@ -260,9 +340,12 @@
   }
 
   function switchTab(name) {
-    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['tahminler','maclar'][i]===name));
+    const tabs = ['tahminler','maclar','liderlik','profil'];
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i]===name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+name));
     if (name==='maclar' && wcContract) loadMatches();
+    if (name==='liderlik') loadLeaderboard();
+    if (name==='profil') loadProfile();
   }
 
   function toast(msg, type="info") { const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toastContainer").appendChild(el); setTimeout(()=>el.remove(),4000); }
@@ -334,6 +417,7 @@
       ${isOpen?`<div class="bet-row"><input class="bet-input" id="amt-${p.id}" type="number" min="0.0001" step="0.0001" placeholder="Miktar (USDC)" /><button class="btn-yes" onclick="placeBet(${p.id},true)">✅ Evet</button><button class="btn-no" onclick="placeBet(${p.id},false)">❌ Hayır</button></div>${Number(BigInt(userYes))>0?`<div class="your-bet-info">Evet bahsiniz: ${(Number(BigInt(userYes))/1e18).toFixed(4)} USDC</div>`:""}${Number(BigInt(userNo))>0?`<div class="your-bet-info">Hayır bahsiniz: ${(Number(BigInt(userNo))/1e18).toFixed(4)} USDC</div>`:""}`:""} 
       ${hasWon&&!userClaimed?`<button class="btn-claim" onclick="claimWinnings(${p.id})">🏆 Kazancını Al</button>`:""}
       ${hasWon&&userClaimed?`<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>`:""}
+      <button class="btn-share" onclick="openSharePred(${p.id},${yesPct})">📤 Paylaş</button>
     `;
     return card;
   }
@@ -484,6 +568,7 @@
       ${Number(m.userAway)>0 ? `<div class="your-bet-info">Deplasman bahsiniz: ${(Number(m.userAway)/1e18).toFixed(4)} USDC</div>` : ''}
       ${hasWon && !m.claimed ? `<button class="btn-claim" style="margin-top:0.75rem" onclick="claimMatch(${m.id})">🏆 Kazancını Al</button>` : ''}
       ${hasWon && m.claimed ? `<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>` : ''}
+      <button class="btn-share" onclick="openShareMatch(${m.id},'${escHtml(m.homeTeam)}','${escHtml(m.awayTeam)}')">📤 Paylaş</button>
     `;
     return card;
   }
@@ -514,6 +599,188 @@
       toast("Kazanç başarıyla alındı! 🎉", "success");
       await loadMatches();
     } catch(err) { toast("Hata: " + (err?.reason || err?.message || "Bilinmiyor"), "error"); }
+  }
+
+  // ── LEADERBOARD ────────────────────────────────────────────────────────────
+  let leaderboardLoaded = false;
+  async function loadLeaderboard() {
+    if (leaderboardLoaded) return;
+    const container = document.getElementById('leaderboardContainer');
+    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    try {
+      const res = await fetch('/api/leaderboard');
+      const data = await res.json();
+      if (!data.ok || !data.leaderboard?.length) {
+        container.innerHTML = `<div class="empty-state">Henüz liderlik verisi yok.</div>`;
+        return;
+      }
+      leaderboardLoaded = true;
+      const lb = data.leaderboard;
+      document.getElementById('lbStatPlayers').textContent = lb.length;
+      document.getElementById('lbStatTopWin').textContent = lb[0].totalWinnings.toFixed(2) + ' USDC';
+      const avgAcc = Math.round(lb.reduce((s,p) => s + p.accuracy, 0) / lb.length);
+      document.getElementById('lbStatAvgAcc').textContent = avgAcc + '%';
+
+      const rankIcons = ['🥇','🥈','🥉'];
+      const rows = lb.map((p, i) => {
+        const rankClass = i < 3 ? `top${i+1}` : '';
+        const rankLabel = i < 3 ? rankIcons[i] : `#${i+1}`;
+        const accClass = p.accuracy >= 60 ? 'high' : p.accuracy >= 40 ? 'mid' : 'low';
+        const displayName = p.username || (p.address.slice(0,6) + '...' + p.address.slice(-4));
+        return `<tr>
+          <td><span class="lb-rank ${rankClass}">${rankLabel}</span></td>
+          <td><span class="lb-addr" title="${p.address}">${displayName}</span></td>
+          <td>${p.totalBets}</td>
+          <td class="lb-winnings">${p.totalWinnings.toFixed(3)}</td>
+          <td><span class="lb-accuracy ${accClass}">${p.accuracy}%</span></td>
+        </tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <table class="lb-table">
+          <thead><tr><th>#</th><th>Oyuncu</th><th>Bahis</th><th>Kazanç (USDC)</th><th>Doğruluk</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">Yükleme hatası: ${err.message}</div>`;
+    }
+  }
+
+  // ── PROFILE / HISTORY ──────────────────────────────────────────────────────
+  async function loadProfile() {
+    if (!userAddress) {
+      document.getElementById('profileNotConnected').style.display = 'block';
+      document.getElementById('profileContent').style.display = 'none';
+      return;
+    }
+    document.getElementById('profileNotConnected').style.display = 'none';
+    document.getElementById('profileContent').style.display = 'block';
+
+    const histContainer = document.getElementById('historyContainer');
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+
+    try {
+      // Hem predictions hem maç bahislerini tara
+      const count = Number(await contract.predictionCount());
+      const mcCount = wcContract ? Number(await wcContract.matchCount()) : 0;
+
+      const predItems = await Promise.all(
+        Array.from({length: count}, async (_, i) => {
+          const [q, deadline, resolved, result, totalYes, totalNo] = await contract.getPrediction(i);
+          const [yesAmt, noAmt, claimed] = await contract.getUserBets(i, userAddress);
+          const userYes = Number(BigInt(yesAmt));
+          const userNo = Number(BigInt(noAmt));
+          if (userYes === 0 && userNo === 0) return null;
+          const totalPool = Number(BigInt(totalYes)) + Number(BigInt(totalNo));
+          let winnings = 0, status = 'pending';
+          if (resolved) {
+            const won = (result && userYes > 0) || (!result && userNo > 0);
+            if (won) {
+              const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo));
+              const userBet = result ? userYes : userNo;
+              winnings = (userBet * totalPool * 98) / (winPool * 100);
+              status = 'win';
+            } else {
+              status = 'loss';
+            }
+          }
+          const userBetTotal = (userYes + userNo) / 1e18;
+          return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed };
+        })
+      );
+
+      const matchItems = wcContract ? await Promise.all(
+        Array.from({length: mcCount}, async (_, i) => {
+          const m = await wcContract.getMatch(i);
+          const ub = await wcContract.getUserBet(i, userAddress);
+          const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
+          if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
+          const resolved = m[3], result = Number(m[4]);
+          const totalPool = Number(m[5]) + Number(m[6]) + Number(m[7]);
+          let winnings = 0, status = 'pending';
+          if (resolved) {
+            const userAmt = result === 0 ? uHome : result === 1 ? uDraw : uAway;
+            const winPool = result === 0 ? Number(m[5]) : result === 1 ? Number(m[6]) : Number(m[7]);
+            if (userAmt > 0) {
+              winnings = (userAmt * totalPool * 98) / (winPool * 100);
+              status = 'win';
+            } else {
+              status = 'loss';
+            }
+          }
+          const userBetTotal = (uHome + uDraw + uAway) / 1e18;
+          return { type: 'match', id: i, q: `${m[0]} vs ${m[1]}`, kickoff: Number(m[2]), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed: ub[3] };
+        })
+      ) : [];
+
+      const allItems = [...predItems, ...matchItems].filter(Boolean).reverse();
+
+      const totalBets = allItems.length;
+      const wins = allItems.filter(x => x.status === 'win').length;
+      const totalIn = allItems.reduce((s, x) => s + x.userBetTotal, 0);
+      const totalOut = allItems.filter(x => x.status === 'win').reduce((s, x) => s + x.winnings, 0);
+      const netPnl = totalOut - totalIn;
+      const acc = totalBets > 0 ? Math.round((wins / allItems.filter(x => x.status !== 'pending').length || 1) * 100) : 0;
+
+      document.getElementById('profTotalBets').textContent = totalBets;
+      document.getElementById('profWins').textContent = wins;
+      document.getElementById('profAccuracy').textContent = acc + '%';
+      const pnlEl = document.getElementById('profNetPnl');
+      pnlEl.textContent = (netPnl >= 0 ? '+' : '') + netPnl.toFixed(3) + ' USDC';
+      pnlEl.style.color = netPnl >= 0 ? 'var(--yes)' : 'var(--no)';
+
+      if (!allItems.length) {
+        histContainer.innerHTML = `<div class="empty-state">Henüz bahis geçmişiniz yok.</div>`;
+        return;
+      }
+
+      histContainer.innerHTML = allItems.map(x => {
+        const statusLabel = x.status === 'win' ? `<span class="result-win">✓ KAZANDI (+${x.winnings.toFixed(4)} USDC)</span>` :
+          x.status === 'loss' ? `<span class="result-loss">✗ KAYBETTİ</span>` :
+          `<span class="result-pending">⏳ Bekliyor</span>`;
+        const typeIcon = x.type === 'match' ? '⚽' : '🔮';
+        return `<div class="history-item">
+          <div>
+            <div class="history-q">${typeIcon} ${escHtml(x.q)}</div>
+            <div class="history-meta">Bahis: ${x.userBetTotal.toFixed(4)} USDC${x.type === 'match' ? ` | Maç #${x.id}` : ` | Tahmin #${x.id}`}</div>
+          </div>
+          <div class="history-result">${statusLabel}</div>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      histContainer.innerHTML = `<div class="empty-state">Yükleme hatası: ${err.message}</div>`;
+    }
+  }
+
+  // ── SOCIAL SHARING ─────────────────────────────────────────────────────────
+  let shareText = '';
+  function openSharePred(id, yesPct) {
+    const pred = allPredictions.find(p => p.id === id);
+    if (!pred) return;
+    const pool = ((Number(BigInt(pred.totalYes)) + Number(BigInt(pred.totalNo))) / 1e18).toFixed(2);
+    shareText = `🔮 Arc Predict'te tahmin ettim!\n\n"${pred.question}"\n\n📊 EVET ${yesPct}% | HAYIR ${100 - yesPct}%\n💰 Toplam Havuz: ${pool} USDC\n\n🔗 arc-predict.vercel.app\n#ArcPredict #Web3 #Prediction`;
+    document.getElementById('shareTextPreview').textContent = shareText;
+    document.getElementById('shareModal').style.display = 'flex';
+  }
+
+  function openShareMatch(id, home, away) {
+    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${home} vs ${away}\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n💰 USDC ile oyna, kazan!\n\n🔗 arc-predict.vercel.app\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+    document.getElementById('shareTextPreview').textContent = shareText;
+    document.getElementById('shareModal').style.display = 'flex';
+  }
+
+  function closeShare() {
+    document.getElementById('shareModal').style.display = 'none';
+  }
+
+  function shareTwitter() {
+    const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText);
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function shareFarcaster() {
+    const url = 'https://warpcast.com/~/compose?text=' + encodeURIComponent(shareText);
+    window.open(url, '_blank', 'noopener');
   }
 
   window.addEventListener("load",async()=>{if(!window.ethereum)return;try{const accounts=await window.ethereum.request({method:"eth_accounts"});if(accounts.length>0)await connectWallet();}catch(_){}});

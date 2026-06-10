@@ -3,7 +3,8 @@ const cron = require('node-cron');
 const Anthropic = require('@anthropic-ai/sdk');
 const { ethers } = require('ethers');
 
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const CONTRACT_ADDRESS    = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const WC_CONTRACT_ADDRESS = "0x24c2AD016280f847d49874Dd06635B4DFe85Ea6D";
 const RPC_URL = "https://rpc.testnet.arc.network";
 
 const PREDICT_ABI = [
@@ -15,6 +16,12 @@ const RESOLVE_ABI = [
   "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
   "function predictionCount() view returns (uint256)",
   "function resolvePrediction(uint256 predictionId, bool result) external"
+];
+
+const WC_RESOLVE_ABI = [
+  "function matchCount() view returns (uint256)",
+  "function getMatch(uint256 matchId) view returns (string homeTeam, string awayTeam, uint256 kickoff, bool resolved, uint8 result, uint256 poolHome, uint256 poolDraw, uint256 poolAway)",
+  "function resolveMatch(uint256 matchId, uint8 result) external"
 ];
 
 // ─── RSS / PREDICT ────────────────────────────────────────────────────────────
@@ -347,6 +354,86 @@ async function runAutoResolve() {
   }
 }
 
+// ─── WC AUTO-RESOLVE ─────────────────────────────────────────────────────────
+
+function normalizeTeam(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function teamsMatch(a, b) {
+  const na = normalizeTeam(a), nb = normalizeTeam(b);
+  return na === nb || na.startsWith(nb.slice(0, 4)) || nb.startsWith(na.slice(0, 4));
+}
+
+async function fetchWCFixtures() {
+  const fixtures = [];
+  const today = new Date();
+  for (const offset of [-7, -6, -5, -4, -3, -2, -1, 0]) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + offset);
+    const dateStr = d.toISOString().split('T')[0];
+    try {
+      const res = await fetch(
+        `https://v3.football.api-sports.io/fixtures?league=1&season=2026&date=${dateStr}`,
+        { headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY }, signal: AbortSignal.timeout(10000) }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      fixtures.push(...(data.response || []));
+    } catch { /* devam */ }
+  }
+  return fixtures;
+}
+
+async function runAutoResolveWC() {
+  const ts = new Date().toISOString();
+  console.log(`\n[${ts}] WC AUTO-RESOLVE başlıyor...`);
+  if (!process.env.API_FOOTBALL_KEY) { console.log('  API_FOOTBALL_KEY yok, atlandı.'); return; }
+  try {
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    const contract = new ethers.Contract(WC_CONTRACT_ADDRESS, WC_RESOLVE_ABI, wallet);
+
+    const count = Number(await contract.matchCount());
+    const now = Math.floor(Date.now() / 1000);
+    const matches = await Promise.all(
+      Array.from({ length: count }, async (_, i) => {
+        const m = await contract.getMatch(i);
+        return { id: i, homeTeam: m[0], awayTeam: m[1], kickoff: Number(m[2]), resolved: m[3] };
+      })
+    );
+    const pending = matches.filter(m => !m.resolved && m.kickoff <= now);
+    console.log(`  Cozum bekleyen WC mac: ${pending.length}`);
+    if (!pending.length) return;
+
+    const fixtures = await fetchWCFixtures();
+    console.log(`  ${fixtures.length} fixture alindi`);
+    let resolved = 0, skipped = 0;
+
+    for (const m of pending) {
+      const fixture = fixtures.find(f =>
+        teamsMatch(m.homeTeam, f.teams?.home?.name || '') &&
+        teamsMatch(m.awayTeam, f.teams?.away?.name || '')
+      );
+      if (!fixture) { console.log(`  [${m.id}] Fixture yok: ${m.homeTeam} vs ${m.awayTeam}`); skipped++; continue; }
+      const status = fixture.fixture?.status?.short;
+      if (!['FT', 'AET', 'PEN'].includes(status)) { console.log(`  [${m.id}] Bitmedi (${status})`); skipped++; continue; }
+      const hg = fixture.goals?.home ?? 0, ag = fixture.goals?.away ?? 0;
+      const result = hg > ag ? 0 : hg === ag ? 1 : 2;
+      const labels = ['Ev Sahibi', 'Beraberlik', 'Deplasman'];
+      try {
+        const tx = await contract.resolveMatch(m.id, result);
+        await tx.wait();
+        console.log(`  [${m.id}] ${m.homeTeam} ${hg}-${ag} ${m.awayTeam} → ${labels[result]} | ${tx.hash}`);
+        resolved++;
+      } catch (err) { console.error(`  [${m.id}] Hata: ${err.message}`); skipped++; }
+    }
+    console.log(`  WC AUTO-RESOLVE tamamlandi: ${resolved} cozumlendi, ${skipped} atlandi.`);
+  } catch (err) {
+    console.error(`  WC AUTO-RESOLVE hata: ${err.message}`);
+  }
+}
+
 // ─── EXPRESS + CRON ───────────────────────────────────────────────────────────
 
 const app = express();
@@ -372,6 +459,11 @@ app.post('/run/resolve', async (_req, res) => {
   res.json(result);
 });
 
+app.post('/run/resolve-wc', async (_req, res) => {
+  await runAutoResolveWC();
+  res.json({ ok: true });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Arc Predict Backend — port ${PORT}`);
@@ -390,6 +482,12 @@ cron.schedule('0 * * * *', () => {
   runAutoResolve().catch(err => console.error('Cron resolve hata:', err.message));
 });
 
+// WC resolve: her 30 dakikada bir
+cron.schedule('*/30 * * * *', () => {
+  runAutoResolveWC().catch(err => console.error('Cron WC resolve hata:', err.message));
+});
+
 // İlk açılışta hemen çalıştır
 setTimeout(() => runAutoPredict(), 5000);
 setTimeout(() => runAutoResolve(), 15000);
+setTimeout(() => runAutoResolveWC(), 25000);
