@@ -251,14 +251,15 @@
   const ARC_CHAIN_ID = "0x4CEF52";
   const ARC_NETWORK = { chainId: ARC_CHAIN_ID, chainName: "Arc Testnet", rpcUrls: ["https://rpc.testnet.arc.network"], nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, blockExplorerUrls: ["https://testnet.arcscan.app"] };
   const ABI = [
+    "event BetPlaced(uint256 indexed id, address indexed bettor, bool isYes, uint256 amount)",
     "function predictionCount() view returns (uint256)",
     "function placeBet(uint256 predictionId, bool isYes) payable",
     "function claimWinnings(uint256 predictionId) external",
     "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
-    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)",
-    "function getProfile(address user) view returns (string username, uint256 totalBets, uint256 wins, uint256 losses, uint256 totalWinnings)"
+    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)"
   ];
   const WC_ABI = [
+    "event BetPlaced(uint256 indexed matchId, address indexed user, uint8 outcome, uint256 amount)",
     "function matchCount() view returns (uint256)",
     "function placeBet(uint256 matchId, uint8 outcome) payable",
     "function claimWinnings(uint256 matchId) external",
@@ -270,6 +271,20 @@
   let allPredictions = [];
   let allMatches = [];
   let activeCategory = 'tumu';
+
+  const DEPLOY_BLOCK = 46186575;
+  const LOG_CHUNK = 10000;
+  async function queryLogsChunked(ct, filter) {
+    const latest = await provider.getBlockNumber();
+    const events = [];
+    for (let b = DEPLOY_BLOCK; b <= latest; b += LOG_CHUNK) {
+      try {
+        const chunk = await ct.queryFilter(filter, b, Math.min(b + LOG_CHUNK - 1, latest));
+        events.push(...chunk);
+      } catch { /* 10k limit: bu parçayı atla */ }
+    }
+    return events;
+  }
 
   const CATEGORY_KEYWORDS = {
     kripto: /bitcoin|\bbtc\b|ethereum|\beth\b|solana|\bsol\b|kripto|crypto|\bcoin\b|token|blockchain/,
@@ -385,7 +400,8 @@
       const count=Number(await contract.predictionCount());
       document.getElementById("statTotal").textContent=count;
       if(count===0){container.innerHTML=`<div class="empty-state">Henüz tahmin yok.</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
-      const items=await Promise.all(Array.from({length:count},(_,i)=>contract.getPrediction(i).then(async p=>{const userBets=await contract.getUserBets(i,userAddress);return{id:i,...parseP(p),userBets};})));
+      const PRED_BATCH=10;const items=[];
+      for(let s=0;s<count;s+=PRED_BATCH){const e=Math.min(s+PRED_BATCH,count);const batch=await Promise.all(Array.from({length:e-s},(_,j)=>{const i=s+j;return contract.getPrediction(i).then(async p=>{const userBets=await contract.getUserBets(i,userAddress);return{id:i,...parseP(p),userBets};});}));items.push(...batch);}
       const now=Math.floor(Date.now()/1000);
       const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);
       const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);
@@ -666,58 +682,59 @@
     histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
 
     try {
-      // Hem predictions hem maç bahislerini tara
-      const count = Number(await contract.predictionCount());
-      const mcCount = wcContract ? Number(await wcContract.matchCount()) : 0;
+      // Kullanicinin BetPlaced event'lerinden bahis yaptiği ID'leri bul
+      const [predEvents, wcEvents] = await Promise.all([
+        queryLogsChunked(contract, contract.filters.BetPlaced(null, userAddress)),
+        wcContract ? queryLogsChunked(wcContract, wcContract.filters.BetPlaced(null, userAddress)) : Promise.resolve([])
+      ]);
 
-      const predItems = await Promise.all(
-        Array.from({length: count}, async (_, i) => {
-          const [q, deadline, resolved, result, totalYes, totalNo] = await contract.getPrediction(i);
-          const [yesAmt, noAmt, claimed] = await contract.getUserBets(i, userAddress);
-          const userYes = Number(BigInt(yesAmt));
-          const userNo = Number(BigInt(noAmt));
-          if (userYes === 0 && userNo === 0) return null;
-          const totalPool = Number(BigInt(totalYes)) + Number(BigInt(totalNo));
-          let winnings = 0, status = 'pending';
-          if (resolved) {
-            const won = (result && userYes > 0) || (!result && userNo > 0);
-            if (won) {
-              const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo));
-              const userBet = result ? userYes : userNo;
-              winnings = (userBet * totalPool * 98) / (winPool * 100);
-              status = 'win';
-            } else {
-              status = 'loss';
-            }
-          }
-          const userBetTotal = (userYes + userNo) / 1e18;
-          return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed };
-        })
-      );
+      const predIds = [...new Set(predEvents.map(e => Number(e.args.id)))];
+      const matchIds = [...new Set(wcEvents.map(e => Number(e.args.matchId)))];
 
-      const matchItems = wcContract ? await Promise.all(
-        Array.from({length: mcCount}, async (_, i) => {
-          const m = await wcContract.getMatch(i);
-          const ub = await wcContract.getUserBet(i, userAddress);
-          const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
-          if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
-          const resolved = m[3], result = Number(m[4]);
-          const totalPool = Number(m[5]) + Number(m[6]) + Number(m[7]);
-          let winnings = 0, status = 'pending';
-          if (resolved) {
-            const userAmt = result === 0 ? uHome : result === 1 ? uDraw : uAway;
-            const winPool = result === 0 ? Number(m[5]) : result === 1 ? Number(m[6]) : Number(m[7]);
-            if (userAmt > 0) {
-              winnings = (userAmt * totalPool * 98) / (winPool * 100);
-              status = 'win';
-            } else {
-              status = 'loss';
-            }
+      const predItems = await Promise.all(predIds.map(async i => {
+        const [q, deadline, resolved, result, totalYes, totalNo] = await contract.getPrediction(i);
+        const [yesAmt, noAmt, claimed] = await contract.getUserBets(i, userAddress);
+        const userYes = Number(BigInt(yesAmt));
+        const userNo = Number(BigInt(noAmt));
+        if (userYes === 0 && userNo === 0) return null;
+        const totalPool = Number(BigInt(totalYes)) + Number(BigInt(totalNo));
+        let winnings = 0, status = 'pending';
+        if (resolved) {
+          const won = (result && userYes > 0) || (!result && userNo > 0);
+          if (won) {
+            const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo));
+            const userBet = result ? userYes : userNo;
+            winnings = (userBet * totalPool * 98) / (winPool * 100);
+            status = 'win';
+          } else {
+            status = 'loss';
           }
-          const userBetTotal = (uHome + uDraw + uAway) / 1e18;
-          return { type: 'match', id: i, q: `${m[0]} vs ${m[1]}`, kickoff: Number(m[2]), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed: ub[3] };
-        })
-      ) : [];
+        }
+        const userBetTotal = (userYes + userNo) / 1e18;
+        return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed };
+      }));
+
+      const matchItems = wcContract ? await Promise.all(matchIds.map(async i => {
+        const m = await wcContract.getMatch(i);
+        const ub = await wcContract.getUserBet(i, userAddress);
+        const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
+        if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
+        const resolved = m[3], result = Number(m[4]);
+        const totalPool = Number(m[5]) + Number(m[6]) + Number(m[7]);
+        let winnings = 0, status = 'pending';
+        if (resolved) {
+          const userAmt = result === 0 ? uHome : result === 1 ? uDraw : uAway;
+          const winPool = result === 0 ? Number(m[5]) : result === 1 ? Number(m[6]) : Number(m[7]);
+          if (userAmt > 0) {
+            winnings = (userAmt * totalPool * 98) / (winPool * 100);
+            status = 'win';
+          } else {
+            status = 'loss';
+          }
+        }
+        const userBetTotal = (uHome + uDraw + uAway) / 1e18;
+        return { type: 'match', id: i, q: `${m[0]} vs ${m[1]}`, kickoff: Number(m[2]), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed: ub[3] };
+      })) : [];
 
       const allItems = [...predItems, ...matchItems].filter(Boolean).reverse();
 
