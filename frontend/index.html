@@ -274,16 +274,43 @@
 
   const DEPLOY_BLOCK = 46186575;
   const LOG_CHUNK = 10000;
-  async function queryLogsChunked(ct, filter) {
-    const latest = await provider.getBlockNumber();
+  const LOG_PARALLEL = 5;
+
+  async function scanBlocksParallel(ct, filter, fromBlock, toBlock) {
+    const chunks = [];
+    for (let b = fromBlock; b <= toBlock; b += LOG_CHUNK) {
+      chunks.push([b, Math.min(b + LOG_CHUNK - 1, toBlock)]);
+    }
+    if (!chunks.length) return [];
     const events = [];
-    for (let b = DEPLOY_BLOCK; b <= latest; b += LOG_CHUNK) {
-      try {
-        const chunk = await ct.queryFilter(filter, b, Math.min(b + LOG_CHUNK - 1, latest));
-        events.push(...chunk);
-      } catch { /* 10k limit: bu parçayı atla */ }
+    for (let i = 0; i < chunks.length; i += LOG_PARALLEL) {
+      const group = chunks.slice(i, i + LOG_PARALLEL);
+      const results = await Promise.all(group.map(([f, t]) =>
+        ct.queryFilter(filter, f, t).catch(() => [])
+      ));
+      results.forEach(r => events.push(...r));
     }
     return events;
+  }
+
+  function betCacheKey(ctAddr) {
+    return `arc_bets_${ctAddr.toLowerCase()}_${(userAddress || '').toLowerCase()}`;
+  }
+
+  async function getProfileBetIds(ct, filter, ctAddr, latest) {
+    const key = betCacheKey(ctAddr);
+    let cache = null;
+    try { cache = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+    const fromBlock = (cache && cache.lastBlock >= DEPLOY_BLOCK) ? cache.lastBlock + 1 : DEPLOY_BLOCK;
+    const cachedIds = cache?.ids || [];
+    let allIds = [...cachedIds];
+    if (fromBlock <= latest) {
+      const newEvents = await scanBlocksParallel(ct, filter, fromBlock, latest);
+      const newIds = newEvents.map(e => Number(e.args[0]));
+      allIds = [...new Set([...cachedIds, ...newIds])];
+      try { localStorage.setItem(key, JSON.stringify({ lastBlock: latest, ids: allIds })); } catch {}
+    }
+    return allIds;
   }
 
   const CATEGORY_KEYWORDS = {
@@ -400,13 +427,17 @@
       const count=Number(await contract.predictionCount());
       document.getElementById("statTotal").textContent=count;
       if(count===0){container.innerHTML=`<div class="empty-state">Henüz tahmin yok.</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
-      const PRED_BATCH=10;const items=[];
-      for(let s=0;s<count;s+=PRED_BATCH){const e=Math.min(s+PRED_BATCH,count);const batch=await Promise.all(Array.from({length:e-s},(_,j)=>{const i=s+j;return contract.getPrediction(i).then(async p=>{const userBets=await contract.getUserBets(i,userAddress);return{id:i,...parseP(p),userBets};});}));items.push(...batch);}
-      const now=Math.floor(Date.now()/1000);
-      const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);
-      const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);
-      document.getElementById("statActive").textContent=active.length;
-      document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";
+      const PRED_BATCH=10;
+      const items=[];
+      const updateStats=()=>{const now=Math.floor(Date.now()/1000);const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);document.getElementById("statActive").textContent=active.length;document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";};
+      await Promise.all(Array.from({length:Math.ceil(count/PRED_BATCH)},(_,bi)=>{
+        const s=bi*PRED_BATCH,e=Math.min(s+PRED_BATCH,count);
+        return Promise.all(Array.from({length:e-s},(__,j)=>{
+          const i=s+j;
+          return Promise.all([contract.getPrediction(i),contract.getUserBets(i,userAddress)])
+            .then(([p,userBets])=>({id:i,...parseP(p),userBets}));
+        })).then(batch=>{items.push(...batch);updateStats();});
+      }));
       allPredictions=items.slice().reverse();
       updateFilterCounts();
       renderFiltered();
@@ -678,22 +709,29 @@
     document.getElementById('profileNotConnected').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
 
+    ['profTotalBets','profWins','profAccuracy','profNetPnl'].forEach(id =>
+      document.getElementById(id).textContent = '...'
+    );
     const histContainer = document.getElementById('historyContainer');
-    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Bahisler taranıyor...</div>`;
 
     try {
-      // Kullanicinin BetPlaced event'lerinden bahis yaptiği ID'leri bul
-      const [predEvents, wcEvents] = await Promise.all([
-        queryLogsChunked(contract, contract.filters.BetPlaced(null, userAddress)),
-        wcContract ? queryLogsChunked(wcContract, wcContract.filters.BetPlaced(null, userAddress)) : Promise.resolve([])
+      const latest = await provider.getBlockNumber();
+      const [predIds, matchIds] = await Promise.all([
+        getProfileBetIds(contract, contract.filters.BetPlaced(null, userAddress), CONTRACT_ADDRESS, latest),
+        wcContract ? getProfileBetIds(wcContract, wcContract.filters.BetPlaced(null, userAddress), WC_CONTRACT_ADDRESS, latest) : Promise.resolve([])
       ]);
 
-      const predIds = [...new Set(predEvents.map(e => Number(e.args.id)))];
-      const matchIds = [...new Set(wcEvents.map(e => Number(e.args.matchId)))];
+      const totalExpected = predIds.length + matchIds.length;
+      if (totalExpected > 0) {
+        histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${totalExpected} bahis yükleniyor...</div>`;
+      }
 
       const predItems = await Promise.all(predIds.map(async i => {
-        const [q, deadline, resolved, result, totalYes, totalNo] = await contract.getPrediction(i);
-        const [yesAmt, noAmt, claimed] = await contract.getUserBets(i, userAddress);
+        const [[q, deadline, resolved, result, totalYes, totalNo], [yesAmt, noAmt, claimed]] = await Promise.all([
+          contract.getPrediction(i),
+          contract.getUserBets(i, userAddress)
+        ]);
         const userYes = Number(BigInt(yesAmt));
         const userNo = Number(BigInt(noAmt));
         if (userYes === 0 && userNo === 0) return null;
@@ -715,8 +753,10 @@
       }));
 
       const matchItems = wcContract ? await Promise.all(matchIds.map(async i => {
-        const m = await wcContract.getMatch(i);
-        const ub = await wcContract.getUserBet(i, userAddress);
+        const [m, ub] = await Promise.all([
+          wcContract.getMatch(i),
+          wcContract.getUserBet(i, userAddress)
+        ]);
         const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
         if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
         const resolved = m[3], result = Number(m[4]);
@@ -782,7 +822,7 @@
     const pred = allPredictions.find(p => p.id === id);
     if (!pred) return;
     const pool = ((Number(BigInt(pred.totalYes)) + Number(BigInt(pred.totalNo))) / 1e18).toFixed(2);
-    shareText = `🔮 Arc Predict'te tahmin ettim!\n\n"${pred.question}"\n\n📊 EVET ${yesPct}% | HAYIR ${100 - yesPct}%\n💰 Toplam Havuz: ${pool} USDC\n\n🔗 arc-predict.vercel.app\n#ArcPredict #Web3 #Prediction`;
+    shareText = `🔮 Arc Predict'te tahmin ettim!\n\n"${pred.question}"\n\n📊 EVET ${yesPct}% | HAYIR ${100 - yesPct}%\n💰 Toplam Havuz: ${pool} USDC\n\n🔗 ${window.location.origin}\n#ArcPredict #Web3 #Prediction`;
     document.getElementById('shareTextPreview').textContent = shareText;
     document.getElementById('shareModal').style.display = 'flex';
   }
@@ -792,7 +832,7 @@
     if (!m) return;
     const pool = (Number(m.poolHome + m.poolDraw + m.poolAway) / 1e18).toFixed(2);
     const resultStr = m.resolved ? ['Ev Sahibi Kazandı','Beraberlik','Deplasman Kazandı'][m.result] + ' ✓' : 'Bahis Açık';
-    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Havuz: ${pool} USDC\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n🔗 arc-predict.vercel.app\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Havuz: ${pool} USDC\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n🔗 ${window.location.origin}\n#ArcPredict #FIFAWorldCup2026 #Web3`;
     document.getElementById('shareTextPreview').textContent = shareText;
     document.getElementById('shareModal').style.display = 'flex';
   }
