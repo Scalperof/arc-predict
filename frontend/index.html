@@ -700,6 +700,31 @@
   }
 
   // ── PROFILE / HISTORY ──────────────────────────────────────────────────────
+  function renderProfileItems(allItems) {
+    const histContainer = document.getElementById('historyContainer');
+    const totalBets = allItems.length;
+    const wins = allItems.filter(x => x.status === 'win').length;
+    const totalIn = allItems.reduce((s, x) => s + x.userBetTotal, 0);
+    const totalOut = allItems.filter(x => x.status === 'win').reduce((s, x) => s + x.winnings, 0);
+    const netPnl = totalOut - totalIn;
+    const resolvedBets = allItems.filter(x => x.status !== 'pending');
+    const acc = resolvedBets.length > 0 ? Math.round((wins / resolvedBets.length) * 100) : 0;
+    document.getElementById('profTotalBets').textContent = totalBets;
+    document.getElementById('profWins').textContent = wins;
+    document.getElementById('profAccuracy').textContent = acc + '%';
+    const pnlEl = document.getElementById('profNetPnl');
+    pnlEl.textContent = (netPnl >= 0 ? '+' : '') + netPnl.toFixed(3) + ' USDC';
+    pnlEl.style.color = netPnl >= 0 ? 'var(--yes)' : 'var(--no)';
+    if (!allItems.length) { histContainer.innerHTML = `<div class="empty-state">Henüz bahis geçmişiniz yok.</div>`; return; }
+    histContainer.innerHTML = allItems.map(x => {
+      const statusLabel = x.status === 'win' ? `<span class="result-win">✓ KAZANDI (+${x.winnings.toFixed(4)} USDC)</span>` :
+        x.status === 'loss' ? `<span class="result-loss">✗ KAYBETTİ</span>` :
+        `<span class="result-pending">⏳ Bekliyor</span>`;
+      const typeIcon = x.type === 'match' ? '⚽' : '🔮';
+      return `<div class="history-item"><div><div class="history-q">${typeIcon} ${escHtml(x.q)}</div><div class="history-meta">Bahis: ${x.userBetTotal.toFixed(4)} USDC${x.type === 'match' ? ` | Maç #${x.id}` : ` | Tahmin #${x.id}`}</div></div><div class="history-result">${statusLabel}</div></div>`;
+    }).join('');
+  }
+
   async function loadProfile() {
     if (!userAddress) {
       document.getElementById('profileNotConnected').style.display = 'block';
@@ -708,109 +733,74 @@
     }
     document.getElementById('profileNotConnected').style.display = 'none';
     document.getElementById('profileContent').style.display = 'block';
-
     ['profTotalBets','profWins','profAccuracy','profNetPnl'].forEach(id =>
       document.getElementById(id).textContent = '...'
     );
     const histContainer = document.getElementById('historyContainer');
-    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Bahisler taranıyor...</div>`;
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
 
+    // ── 1. Sunucu API (hızlı yol) ──────────────────────────────────
+    try {
+      const res = await fetch(`/api/profile?address=${userAddress}`,
+        { signal: AbortSignal.timeout(15000) });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.items)) {
+          renderProfileItems(data.items.slice().reverse());
+          return;
+        }
+      }
+    } catch (_) { /* API erişilemez — fallback'e geç */ }
+
+    // ── 2. Fallback: istemci tarafı RPC + localStorage cache ───────
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Bahisler taranıyor...</div>`;
     try {
       const latest = await provider.getBlockNumber();
       const [predIds, matchIds] = await Promise.all([
         getProfileBetIds(contract, contract.filters.BetPlaced(null, userAddress), CONTRACT_ADDRESS, latest),
         wcContract ? getProfileBetIds(wcContract, wcContract.filters.BetPlaced(null, userAddress), WC_CONTRACT_ADDRESS, latest) : Promise.resolve([])
       ]);
-
       const totalExpected = predIds.length + matchIds.length;
       if (totalExpected > 0) {
         histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${totalExpected} bahis yükleniyor...</div>`;
       }
-
-      const predItems = await Promise.all(predIds.map(async i => {
-        const [[q, deadline, resolved, result, totalYes, totalNo], [yesAmt, noAmt, claimed]] = await Promise.all([
-          contract.getPrediction(i),
-          contract.getUserBets(i, userAddress)
-        ]);
-        const userYes = Number(BigInt(yesAmt));
-        const userNo = Number(BigInt(noAmt));
-        if (userYes === 0 && userNo === 0) return null;
-        const totalPool = Number(BigInt(totalYes)) + Number(BigInt(totalNo));
-        let winnings = 0, status = 'pending';
-        if (resolved) {
-          const won = (result && userYes > 0) || (!result && userNo > 0);
-          if (won) {
-            const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo));
-            const userBet = result ? userYes : userNo;
-            winnings = (userBet * totalPool * 98) / (winPool * 100);
-            status = 'win';
-          } else {
-            status = 'loss';
-          }
-        }
-        const userBetTotal = (userYes + userNo) / 1e18;
-        return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed };
-      }));
-
-      const matchItems = wcContract ? await Promise.all(matchIds.map(async i => {
-        const [m, ub] = await Promise.all([
-          wcContract.getMatch(i),
-          wcContract.getUserBet(i, userAddress)
-        ]);
-        const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
-        if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
-        const resolved = m[3], result = Number(m[4]);
-        const totalPool = Number(m[5]) + Number(m[6]) + Number(m[7]);
-        let winnings = 0, status = 'pending';
-        if (resolved) {
-          const userAmt = result === 0 ? uHome : result === 1 ? uDraw : uAway;
-          const winPool = result === 0 ? Number(m[5]) : result === 1 ? Number(m[6]) : Number(m[7]);
-          if (userAmt > 0) {
-            winnings = (userAmt * totalPool * 98) / (winPool * 100);
-            status = 'win';
-          } else {
-            status = 'loss';
-          }
-        }
-        const userBetTotal = (uHome + uDraw + uAway) / 1e18;
-        return { type: 'match', id: i, q: `${m[0]} vs ${m[1]}`, kickoff: Number(m[2]), resolved, result, status, userBetTotal, winnings: winnings / 1e18, claimed: ub[3] };
-      })) : [];
-
-      const allItems = [...predItems, ...matchItems].filter(Boolean).reverse();
-
-      const totalBets = allItems.length;
-      const wins = allItems.filter(x => x.status === 'win').length;
-      const totalIn = allItems.reduce((s, x) => s + x.userBetTotal, 0);
-      const totalOut = allItems.filter(x => x.status === 'win').reduce((s, x) => s + x.winnings, 0);
-      const netPnl = totalOut - totalIn;
-      const resolvedBets = allItems.filter(x => x.status !== 'pending');
-      const acc = resolvedBets.length > 0 ? Math.round((wins / resolvedBets.length) * 100) : 0;
-
-      document.getElementById('profTotalBets').textContent = totalBets;
-      document.getElementById('profWins').textContent = wins;
-      document.getElementById('profAccuracy').textContent = acc + '%';
-      const pnlEl = document.getElementById('profNetPnl');
-      pnlEl.textContent = (netPnl >= 0 ? '+' : '') + netPnl.toFixed(3) + ' USDC';
-      pnlEl.style.color = netPnl >= 0 ? 'var(--yes)' : 'var(--no)';
-
-      if (!allItems.length) {
-        histContainer.innerHTML = `<div class="empty-state">Henüz bahis geçmişiniz yok.</div>`;
-        return;
-      }
-
-      histContainer.innerHTML = allItems.map(x => {
-        const statusLabel = x.status === 'win' ? `<span class="result-win">✓ KAZANDI (+${x.winnings.toFixed(4)} USDC)</span>` :
-          x.status === 'loss' ? `<span class="result-loss">✗ KAYBETTİ</span>` :
-          `<span class="result-pending">⏳ Bekliyor</span>`;
-        const typeIcon = x.type === 'match' ? '⚽' : '🔮';
-        return `<div class="history-item">
-          <div>
-            <div class="history-q">${typeIcon} ${escHtml(x.q)}</div>
-            <div class="history-meta">Bahis: ${x.userBetTotal.toFixed(4)} USDC${x.type === 'match' ? ` | Maç #${x.id}` : ` | Tahmin #${x.id}`}</div>
-          </div>
-          <div class="history-result">${statusLabel}</div>
-        </div>`;
-      }).join('');
+      const [predItems, matchItems] = await Promise.all([
+        Promise.all(predIds.map(async i => {
+          try {
+            const [[q, deadline, resolved, result, totalYes, totalNo], [yesAmt, noAmt, claimed]] = await Promise.all([
+              contract.getPrediction(i), contract.getUserBets(i, userAddress)
+            ]);
+            const userYes = Number(BigInt(yesAmt)), userNo = Number(BigInt(noAmt));
+            if (userYes === 0 && userNo === 0) return null;
+            const totalPool = Number(BigInt(totalYes)) + Number(BigInt(totalNo));
+            let winnings = 0, status = 'pending';
+            if (resolved) {
+              const won = (result && userYes > 0) || (!result && userNo > 0);
+              if (won) { const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo)); winnings = (( result ? userYes : userNo) * totalPool * 98) / (winPool * 100); status = 'win'; }
+              else { status = 'loss'; }
+            }
+            return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal: (userYes + userNo) / 1e18, winnings: winnings / 1e18, claimed };
+          } catch { return null; }
+        })),
+        wcContract ? Promise.all(matchIds.map(async i => {
+          try {
+            const [m, ub] = await Promise.all([wcContract.getMatch(i), wcContract.getUserBet(i, userAddress)]);
+            const uHome = Number(ub[0]), uDraw = Number(ub[1]), uAway = Number(ub[2]);
+            if (uHome === 0 && uDraw === 0 && uAway === 0) return null;
+            const resolved = m[3], result = Number(m[4]);
+            const totalPool = Number(m[5]) + Number(m[6]) + Number(m[7]);
+            let winnings = 0, status = 'pending';
+            if (resolved) {
+              const userAmt = result === 0 ? uHome : result === 1 ? uDraw : uAway;
+              const winPool = result === 0 ? Number(m[5]) : result === 1 ? Number(m[6]) : Number(m[7]);
+              if (userAmt > 0) { winnings = (userAmt * totalPool * 98) / (winPool * 100); status = 'win'; }
+              else { status = 'loss'; }
+            }
+            return { type: 'match', id: i, q: `${m[0]} vs ${m[1]}`, kickoff: Number(m[2]), resolved, result, status, userBetTotal: (uHome + uDraw + uAway) / 1e18, winnings: winnings / 1e18, claimed: ub[3] };
+          } catch { return null; }
+        })) : Promise.resolve([])
+      ]);
+      renderProfileItems([...predItems, ...matchItems].filter(Boolean).reverse());
     } catch (err) {
       histContainer.innerHTML = `<div class="empty-state">Yükleme hatası: ${err.message}</div>`;
     }
