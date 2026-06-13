@@ -72,7 +72,9 @@ function detectCategory(question) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CRYPTO RESOLVER — Binance historical klines (no API key needed)
+// CRYPTO RESOLVER
+// Primary:  Binance data.binance.vision (public, no geo-block)
+// Fallback: CoinGecko market_chart (free tier, no key)
 // ═══════════════════════════════════════════════════════════════════
 const BINANCE_SYMBOLS = {
   bitcoin: 'BTCUSDT', btc: 'BTCUSDT',
@@ -88,13 +90,31 @@ const BINANCE_SYMBOLS = {
   zcash: 'ZECUSDT', zec: 'ZECUSDT',
 };
 
-function detectBinanceSymbol(question) {
+const COINGECKO_IDS = {
+  bitcoin: 'bitcoin', btc: 'bitcoin',
+  ethereum: 'ethereum', eth: 'ethereum',
+  solana: 'solana', sol: 'solana',
+  cardano: 'cardano', ada: 'cardano',
+  bnb: 'binancecoin',
+  xrp: 'ripple', ripple: 'ripple',
+  dogecoin: 'dogecoin', doge: 'dogecoin',
+  polygon: 'matic-network', matic: 'matic-network',
+  avalanche: 'avalanche-2', avax: 'avalanche-2',
+  chainlink: 'chainlink', link: 'chainlink',
+  zcash: 'zcash', zec: 'zcash',
+};
+
+function detectCoinInfo(question) {
   const q = question.toLowerCase();
-  // Check multi-word keys first
   for (const [kw, sym] of Object.entries(BINANCE_SYMBOLS)) {
-    if (q.includes(kw)) return sym;
+    if (q.includes(kw)) return { symbol: sym, cgId: COINGECKO_IDS[kw] || null };
   }
   return null;
+}
+
+// Keep old name for internal compat
+function detectBinanceSymbol(question) {
+  return detectCoinInfo(question)?.symbol || null;
 }
 
 function extractPriceThreshold(question) {
@@ -137,49 +157,74 @@ function extractPriceThreshold(question) {
   return { value, direction };
 }
 
+function applyThreshold(maxHigh, minLow, threshold) {
+  const thr = threshold.value.toLocaleString();
+  if (threshold.direction === 'stay_above') {
+    const result = minLow > threshold.value;
+    return { result, reason: `min=$${minLow.toFixed(2)} eşik $${thr} → ${result ? 'Üzerinde kaldı ✅' : 'Altına düştü ❌'}` };
+  }
+  if (threshold.direction === 'under') {
+    const result = minLow < threshold.value;
+    return { result, reason: `min=$${minLow.toFixed(2)} eşik $${thr} → ${result ? 'Altına düştü ✅' : 'Düşmedi ❌'}` };
+  }
+  const result = maxHigh > threshold.value;
+  return { result, reason: `max=$${maxHigh.toFixed(2)} eşik $${thr} → ${result ? 'Aştı ✅' : 'Aşamadı ❌'}` };
+}
+
 async function resolveCrypto(question, deadline) {
-  const symbol = detectBinanceSymbol(question);
-  if (!symbol) return { result: null, reason: `Kripto sembolü tanınamadı` };
+  const coinInfo = detectCoinInfo(question);
+  if (!coinInfo) return { result: null, reason: 'Kripto sembolü tanınamadı', source: 'none' };
+  const { symbol, cgId } = coinInfo;
 
   const threshold = extractPriceThreshold(question);
-  if (!threshold) return { result: null, reason: `Fiyat eşiği bulunamadı (${symbol})` };
+  if (!threshold) return { result: null, reason: `Fiyat eşiği bulunamadı (${symbol})`, source: 'none' };
 
   const endMs = Number(deadline) * 1000;
   const startMs = endMs - 48 * 3600 * 1000;
 
-  try {
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&startTime=${startMs}&endTime=${endMs}&limit=50`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
-    if (!res.ok) return { result: null, reason: `Binance API HTTP ${res.status}` };
-    const klines = await res.json();
+  // ── Try 1: Binance data.binance.vision (public data API, not geo-blocked) ──
+  const binanceUrls = [
+    `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=1h&startTime=${startMs}&endTime=${endMs}&limit=50`,
+    `https://api1.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&startTime=${startMs}&endTime=${endMs}&limit=50`,
+    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&startTime=${startMs}&endTime=${endMs}&limit=50`,
+  ];
 
-    if (!Array.isArray(klines) || klines.length === 0) {
-      return { result: null, reason: `Binance klines boş (${symbol})` };
-    }
+  for (const url of binanceUrls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const klines = await res.json();
+      if (!Array.isArray(klines) || klines.length === 0) continue;
 
-    const highs = klines.map(k => parseFloat(k[2]));
-    const lows = klines.map(k => parseFloat(k[3]));
-    const maxHigh = Math.max(...highs);
-    const minLow = Math.min(...lows);
-
-    let result, reason;
-    const thr = threshold.value.toLocaleString();
-
-    if (threshold.direction === 'stay_above') {
-      result = minLow > threshold.value;
-      reason = `${symbol} 48s min=$${minLow.toFixed(2)} | eşik $${thr} → ${result ? 'Üzerinde kaldı ✅' : 'Altına düştü ❌'}`;
-    } else if (threshold.direction === 'under') {
-      result = minLow < threshold.value;
-      reason = `${symbol} 48s min=$${minLow.toFixed(2)} | eşik $${thr} → ${result ? 'Altına düştü ✅' : 'Düşmedi ❌'}`;
-    } else {
-      result = maxHigh > threshold.value;
-      reason = `${symbol} 48s max=$${maxHigh.toFixed(2)} | eşik $${thr} → ${result ? 'Aştı ✅' : 'Aşamadı ❌'}`;
-    }
-
-    return { result, reason, source: 'binance-klines' };
-  } catch (e) {
-    return { result: null, reason: `Binance hata: ${e.message.slice(0, 60)}` };
+      const highs = klines.map(k => parseFloat(k[2]));
+      const lows = klines.map(k => parseFloat(k[3]));
+      const { result, reason } = applyThreshold(Math.max(...highs), Math.min(...lows), threshold);
+      const host = new URL(url).hostname;
+      return { result, reason: `${symbol} ${reason}`, source: `binance-${host}` };
+    } catch { /* try next */ }
   }
+
+  // ── Try 2: CoinGecko market_chart (free, historical hourly prices) ──
+  if (cgId) {
+    try {
+      // days=3 gives hourly granularity for the past 3 days
+      const days = Math.ceil((Date.now() - startMs) / 86400000) + 1;
+      const cgUrl = `https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${Math.min(days, 90)}`;
+      const res = await fetch(cgUrl, { signal: AbortSignal.timeout(10000) });
+      if (res.ok) {
+        const data = await res.json();
+        const prices = (data.prices || []).filter(([ts]) => ts >= startMs && ts <= endMs).map(([, p]) => p);
+        if (prices.length > 0) {
+          const maxH = Math.max(...prices);
+          const minL = Math.min(...prices);
+          const { result, reason } = applyThreshold(maxH, minL, threshold);
+          return { result, reason: `${cgId} CoinGecko ${reason}`, source: 'coingecko' };
+        }
+      }
+    } catch { /* fall through */ }
+  }
+
+  return { result: null, reason: `Kripto fiyat verisi alınamadı (${symbol}) — Binance+CoinGecko başarısız`, source: 'none' };
 }
 
 // ═══════════════════════════════════════════════════════════════════
