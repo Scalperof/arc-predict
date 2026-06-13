@@ -1,6 +1,6 @@
 const { ethers } = require('ethers');
 
-const WC_CONTRACT_ADDRESS = "0x24c2AD016280f847d49874Dd06635B4DFe85Ea6D";
+const WC_CONTRACT_ADDRESS = "0x7Aa8715b1641D4EC1A52d646d4e3E6f883064391";
 const RPC_URL = "https://rpc.testnet.arc.network";
 const WC_ABI = [
   "function matchCount() view returns (uint256)",

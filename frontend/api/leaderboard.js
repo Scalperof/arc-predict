@@ -1,7 +1,7 @@
 const { ethers } = require('ethers');
 
 const CONTRACT_ADDRESS    = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
-const WC_CONTRACT_ADDRESS = "0x24c2AD016280f847d49874Dd06635B4DFe85Ea6D";
+const WC_CONTRACT_ADDRESS = "0x7Aa8715b1641D4EC1A52d646d4e3E6f883064391";
 const RPC_URL = "https://rpc.testnet.arc.network";
 
 const PREDICT_ABI = [
