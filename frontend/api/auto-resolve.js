@@ -1,249 +1,510 @@
+'use strict';
 const Anthropic = require('@anthropic-ai/sdk');
 const { ethers } = require('ethers');
 
-const CONTRACT_ADDRESS = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
+// ═══════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const CONTRACT_ADDRESS = '0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975';
 const ABI = [
-  "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
-  "function predictionCount() view returns (uint256)",
-  "function resolvePrediction(uint256 predictionId, bool result) external"
+  'function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)',
+  'function predictionCount() view returns (uint256)',
+  'function resolvePrediction(uint256 predictionId, bool result) external',
 ];
-const RPC_URL = "https://rpc.testnet.arc.network";
+const RPC_URL = 'https://rpc.testnet.arc.network';
 
-const FOOTBALL_KEYWORDS = [
-  'futbol', 'maç', 'gol', 'şampiyon', 'lig', 'takım', 'teknik direktör',
-  'mourinho', 'bellingham', 'ronaldo', 'messi', 'premier league', 'la liga',
-  'bundesliga', 'serie a', 'champions league', 'uefa', 'fifa', 'real madrid',
-  'barcelona', 'chelsea', 'liverpool', 'manchester', 'arsenal', 'juventus',
-  'milan', 'inter', 'psg', 'oynayacak', 'başlayacak', 'kazanacak', 'soccer',
-  'football', 'squad', 'lineup', 'goal', 'match', 'coach', 'player', 'england',
-  'costa rica', 'hazırlık maçı'
-];
+// ═══════════════════════════════════════════════════════════════════
+// CATEGORY DETECTION
+// ═══════════════════════════════════════════════════════════════════
+const CATEGORY_KEYWORDS = {
+  kripto: [
+    'bitcoin', 'btc', 'ethereum', 'eth', 'kripto', 'crypto', 'coin', 'token',
+    'zcash', 'zec', 'solana', 'sol', 'cardano', 'ada', 'bnb', 'xrp', 'ripple',
+    'dogecoin', 'doge', 'polygon', 'matic', 'avalanche', 'avax', 'chainlink',
+    'link', 'defi', 'altcoin', 'usdt', 'blockchain',
+    'dolar seviyesi', 'fiyat seviyesi', 'seviyesini aşacak', 'üzerinde kal',
+  ],
+  spor: [
+    'futbol', 'maç', 'gol', 'şampiyon', 'lig', 'kazanacak', 'kaybedecek',
+    'beraberlik', 'skor', 'basketbol', 'voleybol', 'tenis', 'golf', 'formula',
+    'nba', 'champions league', 'premier league', 'la liga', 'bundesliga',
+    'fifa', 'uefa', 'dünya kupası', 'world cup', 'milli maç', 'hazırlık maçı',
+    'beşiktaş', 'galatasaray', 'fenerbahçe', 'trabzonspor', 'başakşehir',
+    'real madrid', 'barcelona', 'chelsea', 'liverpool', 'manchester', 'arsenal',
+    'milan', 'juventus', 'psg', 'nottingham',
+    'serinin', 'çeyrek final', 'yarı final', 'finale', 'turnuva',
+    'efeleri', 'rosmalen', 'wimbledon', 'roland garros', 'transfer açıkla',
+  ],
+  siyaset: [
+    'seçim', 'cumhurbaşkan', 'hükümet', 'meclis', 'parti', 'muhalefet',
+    'erdoğan', 'trump', 'biden', 'putin', 'macron', 'nato', 'ukrayna', 'rusya',
+    'savaş', 'barış', 'anlaşma', 'yaptırım', 'bakan', 'başbakan',
+    'g7', 'g20', 'savcı', 'mahkeme', 'dava', 'tutuklama', 'istifa',
+    'kılıçdaroğlu', 'chp', 'akp', 'iyi parti', 'kurultay', 'disiplin',
+    'müzakere', 'diplomatik', 'büyükelçi', 'gümrük kapısı', 'yasa', 'kanun',
+    'referandum', 'veto', 'halkbank', 'dışişleri', 'ermenistan',
+    'iran', 'hürmüz', 'askeri', 'saldırı', 'bombardıman',
+  ],
+  ekonomi: [
+    'enflasyon', 'faiz', 'döviz', 'borsa', 'büyüme', 'gdp', 'gsyh',
+    'merkez bankası', 'fed', 'ecb', 'tcmb', 'işsizlik', 'ihracat', 'ithalat',
+    'tahvil', 'altın', 'petrol', 'ham petrol', 'doğalgaz', 'resesyon',
+    'bütçe', 'vergi', 'hazine', 'hisse', 'endeks', 'ticaret açığı',
+    'şimşek', 'astor enerji', 'rivian', 'soğan ithalat', 'japonya merkez',
+  ],
+  magazin: [
+    'ünlü', 'oyuncu', 'şarkıcı', 'evlendi', 'boşandı', 'bebek',
+    'düğün', 'nişan', 'balayı', 'magazin', 'oscar', 'grammy', 'dizi',
+    'konser', 'albüm', 'skandal', 'kavga', 'sosyal medya', 'instagram',
+    'takipçi', 'ifşa', 'flaş', 'kraliyet', 'gelinlik', 'gelin', 'nikah',
+    'ünlü model', 'ünlü çift',
+  ],
+};
 
-const CRYPTO_KEYWORDS = [
-  'bitcoin', 'btc', 'ethereum', 'eth', 'kripto', 'crypto', 'coin', 'token',
-  'dolar', 'usd', 'fiyat', 'zcash', 'zec', 'solana', 'sol', 'cardano', 'ada',
-  'binance', 'bnb', 'xrp', 'ripple', 'dogecoin', 'doge', 'polygon', 'matic',
-  'avalanche', 'avax', 'chainlink', 'link', 'defi', 'blockchain', 'altcoin',
-  'securitize', 'galaxy', 'clarity act', 'nyse'
-];
-
-function categorize(question) {
+function detectCategory(question) {
   const q = question.toLowerCase();
-  const fScore = FOOTBALL_KEYWORDS.filter(k => q.includes(k)).length;
-  const cScore = CRYPTO_KEYWORDS.filter(k => q.includes(k)).length;
-  if (fScore > cScore && fScore > 0) return 'futbol';
-  if (cScore > 0) return 'kripto';
-  return 'siyasi';
+  const scores = {};
+  for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+    scores[cat] = kws.filter(k => q.includes(k)).length;
+  }
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  return sorted[0][1] === 0 ? 'siyaset' : sorted[0][0];
 }
 
-async function fetchFootballFixtures() {
-  const fixtures = [];
+// ═══════════════════════════════════════════════════════════════════
+// CRYPTO RESOLVER — Binance historical klines (no API key needed)
+// ═══════════════════════════════════════════════════════════════════
+const BINANCE_SYMBOLS = {
+  bitcoin: 'BTCUSDT', btc: 'BTCUSDT',
+  ethereum: 'ETHUSDT', eth: 'ETHUSDT',
+  solana: 'SOLUSDT', sol: 'SOLUSDT',
+  cardano: 'ADAUSDT', ada: 'ADAUSDT',
+  bnb: 'BNBUSDT',
+  xrp: 'XRPUSDT', ripple: 'XRPUSDT',
+  dogecoin: 'DOGEUSDT', doge: 'DOGEUSDT',
+  polygon: 'MATICUSDT', matic: 'MATICUSDT',
+  avalanche: 'AVAXUSDT', avax: 'AVAXUSDT',
+  chainlink: 'LINKUSDT', link: 'LINKUSDT',
+  zcash: 'ZECUSDT', zec: 'ZECUSDT',
+};
+
+function detectBinanceSymbol(question) {
+  const q = question.toLowerCase();
+  // Check multi-word keys first
+  for (const [kw, sym] of Object.entries(BINANCE_SYMBOLS)) {
+    if (q.includes(kw)) return sym;
+  }
+  return null;
+}
+
+function extractPriceThreshold(question) {
+  const q = question.toLowerCase();
+  let value = null;
+
+  // 1. Turkish dot-thousands: 60.000, 1.750, 64.000
+  const trMatch = q.match(/(\d{1,3}(?:\.\d{3})+)/);
+  if (trMatch) value = parseFloat(trMatch[1].replace(/\./g, ''));
+
+  // 2. American comma-thousands: 63,000, 1,700 (user typed American-style)
+  if (value === null) {
+    const amMatch = q.match(/(\d{1,3}(?:,\d{3})+)/);
+    if (amMatch) value = parseFloat(amMatch[1].replace(/,/g, ''));
+  }
+
+  // 3. Plain 4+ digit integer: 63000
+  if (value === null) {
+    const plainMatch = q.match(/(\d{4,})/);
+    if (plainMatch) value = parseFloat(plainMatch[1]);
+  }
+
+  if (value === null || value < 100 || isNaN(value)) return null;
+
+  // Direction detection (order matters: more specific first)
+  const stayAbove =
+    q.includes('üzerinde kal') || q.includes('üstünde kal') ||
+    (q.includes('üzerinde') && (q.includes('başar') || q.includes('tutun')));
+  const dropBelow =
+    q.includes('altına düş') || q.includes('altına in') ||
+    (q.includes('altında') && q.includes('kalacak'));
+  const exceed =
+    q.includes('aşacak') || q.includes('geçecek') ||
+    q.includes('üzerine çık') || q.includes('üstüne çık');
+
+  let direction = 'exceed'; // default
+  if (stayAbove) direction = 'stay_above';
+  else if (dropBelow) direction = 'under';
+
+  return { value, direction };
+}
+
+async function resolveCrypto(question, deadline) {
+  const symbol = detectBinanceSymbol(question);
+  if (!symbol) return { result: null, reason: `Kripto sembolü tanınamadı` };
+
+  const threshold = extractPriceThreshold(question);
+  if (!threshold) return { result: null, reason: `Fiyat eşiği bulunamadı (${symbol})` };
+
+  const endMs = Number(deadline) * 1000;
+  const startMs = endMs - 48 * 3600 * 1000;
+
+  try {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&startTime=${startMs}&endTime=${endMs}&limit=50`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+    if (!res.ok) return { result: null, reason: `Binance API HTTP ${res.status}` };
+    const klines = await res.json();
+
+    if (!Array.isArray(klines) || klines.length === 0) {
+      return { result: null, reason: `Binance klines boş (${symbol})` };
+    }
+
+    const highs = klines.map(k => parseFloat(k[2]));
+    const lows = klines.map(k => parseFloat(k[3]));
+    const maxHigh = Math.max(...highs);
+    const minLow = Math.min(...lows);
+
+    let result, reason;
+    const thr = threshold.value.toLocaleString();
+
+    if (threshold.direction === 'stay_above') {
+      result = minLow > threshold.value;
+      reason = `${symbol} 48s min=$${minLow.toFixed(2)} | eşik $${thr} → ${result ? 'Üzerinde kaldı ✅' : 'Altına düştü ❌'}`;
+    } else if (threshold.direction === 'under') {
+      result = minLow < threshold.value;
+      reason = `${symbol} 48s min=$${minLow.toFixed(2)} | eşik $${thr} → ${result ? 'Altına düştü ✅' : 'Düşmedi ❌'}`;
+    } else {
+      result = maxHigh > threshold.value;
+      reason = `${symbol} 48s max=$${maxHigh.toFixed(2)} | eşik $${thr} → ${result ? 'Aştı ✅' : 'Aşamadı ❌'}`;
+    }
+
+    return { result, reason, source: 'binance-klines' };
+  } catch (e) {
+    return { result: null, reason: `Binance hata: ${e.message.slice(0, 60)}` };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SPORTS RESOLVER
+// WC matches → football-data.org
+// Club matches → api-sports.io
+// Everything else → Google News + Claude
+// ═══════════════════════════════════════════════════════════════════
+const TR_TEAM_MAP = {
+  'avustralya': 'australia', 'türkiye milli': 'turkey', 'türkiye': 'turkey',
+  'brezilya': 'brazil', 'almanya': 'germany', 'fransa': 'france',
+  'ispanya': 'spain', 'hollanda': 'netherlands', 'portekiz': 'portugal',
+  'arjantin': 'argentina', 'japonya': 'japan', 'güney kore': 'south korea',
+  'fas': 'morocco', 'meksika': 'mexico', 'abd': 'united states',
+  'kanada': 'canada', 'belçika': 'belgium', 'hırvatistan': 'croatia',
+  'isviçre': 'switzerland', 'danimarka': 'denmark', 'polonya': 'poland',
+  'sırbistan': 'serbia', 'urugua': 'uruguay', 'ekvador': 'ecuador',
+  'kamerun': 'cameroon', 'gana': 'ghana', 'tunus': 'tunisia',
+  'katar': 'qatar', 'suudi arabistan': 'saudi arabia',
+  'norveç': 'norway', 'isveç': 'sweden', 'avusturya': 'austria',
+  'iskocya': 'scotland', 'haiti': 'haiti', 'irak': 'iraq',
+  'ingiltere': 'england', 'kostarika': 'costa rica',
+};
+
+function normalizeTeam(name) {
+  return name.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function extractMentionedTeams(question) {
+  const q = question.toLowerCase();
+  const found = [];
+  // Longer phrases first (e.g. "türkiye milli" before "türkiye")
+  for (const [tr] of Object.entries(TR_TEAM_MAP).sort((a, b) => b[0].length - a[0].length)) {
+    if (q.includes(tr)) found.push(TR_TEAM_MAP[tr]);
+  }
+  return [...new Set(found)];
+}
+
+async function fetchWCFinished() {
+  const token = (process.env.FOOTBALL_API_TOKEN || 'd393bb1aa1184d4b8ef6145564909128').trim();
+  try {
+    const res = await fetch('https://api.football-data.org/v4/competitions/WC/matches?status=FINISHED', {
+      headers: { 'X-Auth-Token': token }, signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.matches || [];
+  } catch { return []; }
+}
+
+async function fetchApiSportsFixtures() {
+  const key = process.env.API_FOOTBALL_KEY;
+  if (!key) return [];
+  const results = [];
   const today = new Date();
-  for (const offset of [-3, -2, -1, 0, 1]) {
+  await Promise.all([-3, -2, -1, 0, 1].map(async (offset) => {
     const d = new Date(today);
     d.setDate(d.getDate() + offset);
     const dateStr = d.toISOString().split('T')[0];
     try {
       const res = await fetch(`https://v3.football.api-sports.io/fixtures?date=${dateStr}`, {
-        headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY },
-        signal: AbortSignal.timeout(10000)
+        headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(10000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) return;
       const data = await res.json();
-      fixtures.push(...(data.response || []));
-    } catch { /* devam */ }
+      results.push(...(data.response || []));
+    } catch { /* skip */ }
+  }));
+  return results;
+}
+
+async function resolveSports(question, deadline, anthropic) {
+  const q = question.toLowerCase();
+  const isResult = q.includes('kazanacak') || q.includes('kaybedecek') || q.includes('beraberlik') ||
+    q.includes('finale') || q.includes('çeyrek') || q.includes('oynanacak') || q.includes('başlayacak');
+
+  // ── football-data.org for WC ──
+  const mentionedTeams = extractMentionedTeams(question);
+  if (mentionedTeams.length > 0) {
+    const wcMatches = await fetchWCFinished();
+    if (wcMatches.length > 0) {
+      const fixture = wcMatches.find(m => {
+        const home = normalizeTeam(m.homeTeam?.name || '');
+        const away = normalizeTeam(m.awayTeam?.name || '');
+        return mentionedTeams.some(t => {
+          const tn = normalizeTeam(t);
+          return home.includes(tn) || away.includes(tn) ||
+            tn.startsWith(home.split(' ')[0]) || tn.startsWith(away.split(' ')[0]);
+        });
+      });
+
+      if (fixture) {
+        const home = fixture.homeTeam?.name;
+        const away = fixture.awayTeam?.name;
+        const homeG = fixture.score?.fullTime?.home;
+        const awayG = fixture.score?.fullTime?.away;
+        const kickoffEpoch = Math.floor(new Date(fixture.utcDate).getTime() / 1000);
+        const withinDeadline = kickoffEpoch <= Number(deadline);
+
+        if (q.includes('oynanacak') || q.includes('başlayacak')) {
+          const played = fixture.status === 'FINISHED' && withinDeadline;
+          return { result: played, reason: `${home} vs ${away} | ${fixture.status} | ${fixture.utcDate.slice(0, 10)}`, source: 'football-data.org' };
+        }
+
+        if (homeG !== null && homeG !== undefined && awayG !== null) {
+          const firstTeam = mentionedTeams[0];
+          const homeNorm = normalizeTeam(home);
+          const ftNorm = normalizeTeam(firstTeam);
+          const isAskingHome = homeNorm.startsWith(ftNorm.split(' ')[0]) || ftNorm.startsWith(homeNorm.split(' ')[0]);
+
+          let result;
+          if (q.includes('beraberlik')) {
+            result = homeG === awayG;
+          } else {
+            result = isAskingHome ? homeG > awayG : awayG > homeG;
+          }
+          return {
+            result,
+            reason: `${home} ${homeG}-${awayG} ${away} | ${firstTeam} ${result ? 'kazandı ✅' : 'kazanamadı ❌'}`,
+            source: 'football-data.org',
+          };
+        }
+      }
+    }
   }
-  return fixtures;
+
+  // ── api-sports.io for club football ──
+  const clubTeams = ['beşiktaş', 'galatasaray', 'fenerbahçe', 'trabzonspor', 'başakşehir',
+    'real madrid', 'barcelona', 'chelsea', 'liverpool', 'manchester', 'arsenal',
+    'milan', 'juventus', 'psg', 'nottingham', 'manchester city'];
+  const isClubFootball = clubTeams.some(t => q.includes(t));
+
+  if (isResult && isClubFootball) {
+    const fixtures = await fetchApiSportsFixtures();
+    const finished = fixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
+    if (finished.length > 0) {
+      const fixtureData = finished.slice(0, 40).map(f =>
+        `${f.teams?.home?.name} ${f.goals?.home ?? '?'}-${f.goals?.away ?? '?'} ${f.teams?.away?.name} (${f.fixture?.date?.split('T')[0]})`
+      ).join('\n');
+
+      const result = await askClaude(question, [fixtureData], anthropic, true);
+      if (result !== null) {
+        return { result, reason: `api-sports.io ${finished.length} biten maç + Claude`, source: 'api-sports.io+claude' };
+      }
+    }
+  }
+
+  // ── Google News + Claude fallback ──
+  const headlines = await fetchGoogleNews(question);
+  if (headlines.length > 0) {
+    const result = await askClaude(question, headlines, anthropic, false);
+    if (result !== null) {
+      return { result, reason: `Google News + Claude | "${headlines[0]?.slice(0, 60)}"`, source: 'google-news+claude' };
+    }
+  }
+
+  return { result: null, reason: 'Spor verisi bulunamadı — manuel inceleme gerekli', source: 'none' };
 }
 
-async function resolveFootball(question, fixtures, client) {
-  const fixtureText = fixtures.slice(0, 40).map(f => {
-    const status = f.fixture?.status?.short;
-    const finished = ['FT', 'AET', 'PEN'].includes(status);
-    const home = f.teams?.home?.name || '';
-    const away = f.teams?.away?.name || '';
-    const score = finished ? `Sonuc: ${f.goals?.home}-${f.goals?.away}` : `Durum: ${status}`;
-    return `${home} vs ${away} | ${score} | ${f.fixture?.date?.split('T')[0]}`;
-  }).join('\n');
-
-  const response = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 16,
-    messages: [{
-      role: "user",
-      content: `Asagidaki futbol mac verilerine gore su soruyu cevapla:\n\nSoru: "${question}"\n\nMac verileri:\n${fixtureText}\n\nSADECE "EVET", "HAYIR" veya "BELIRSIZ" yaz.`
-    }]
-  });
-
-  const answer = response.content.find(b => b.type === 'text')?.text?.trim().toUpperCase();
-  if (answer?.includes('EVET')) return true;
-  if (answer?.includes('HAYIR')) return false;
-  return null;
-}
-
-const COIN_MAP = {
-  'bitcoin': 'bitcoin', 'btc': 'bitcoin',
-  'ethereum': 'ethereum', 'eth': 'ethereum',
-  'zcash': 'zcash', 'zec': 'zcash',
-  'solana': 'solana', 'sol': 'solana',
-  'cardano': 'cardano', 'ada': 'cardano',
-  'binance': 'binancecoin', 'bnb': 'binancecoin',
-  'xrp': 'ripple', 'ripple': 'ripple',
-  'dogecoin': 'dogecoin', 'doge': 'dogecoin',
-  'polygon': 'matic-network', 'matic': 'matic-network',
-  'avalanche': 'avalanche-2', 'avax': 'avalanche-2',
-  'chainlink': 'chainlink', 'link': 'chainlink'
+// ═══════════════════════════════════════════════════════════════════
+// NEWS RESOLVER — RSS feeds + Google News + Claude
+// Used for: siyaset, ekonomi, magazin
+// ═══════════════════════════════════════════════════════════════════
+const RSS_BY_CATEGORY = {
+  siyaset: ['https://feeds.bbci.co.uk/turkce/rss.xml', 'https://www.ntv.com.tr/turkiye.rss'],
+  ekonomi: ['https://www.bloomberght.com/rss', 'https://www.dunya.com/rss'],
+  magazin: ['https://www.hurriyet.com.tr/rss/magazin', 'https://www.milliyet.com.tr/rss/rssNew/magazin_rss.xml'],
 };
-
-function detectCoin(question) {
-  const q = question.toLowerCase();
-  for (const [kw, id] of Object.entries(COIN_MAP)) {
-    if (q.includes(kw)) return id;
-  }
-  return null;
-}
-
-function extractThreshold(question) {
-  const q = question.toLowerCase();
-  const nums = q.match(/[\d]{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?/g);
-  if (!nums) return null;
-  const raw = nums[nums.length - 1].replace(/\s/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.');
-  const value = parseFloat(raw);
-  if (isNaN(value)) return null;
-  const over = q.includes('üzerine') || q.includes('üstüne') || q.includes('aşacak') || q.includes('geçecek');
-  return { value, direction: over ? 'over' : 'under' };
-}
-
-async function resolveCrypto(question) {
-  const coinId = detectCoin(question);
-  if (!coinId) return null;
-  const threshold = extractThreshold(question);
-  if (!threshold) return null;
-  try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const price = data[coinId]?.usd;
-    if (!price) return null;
-    return threshold.direction === 'over' ? price > threshold.value : price < threshold.value;
-  } catch { return null; }
-}
 
 function parseTitlesFromRSS(xml) {
   const titles = [];
-  const itemRegex = /<item[\s\S]*?<\/item>/gi;
-  const titleRegex = /<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i;
-  for (const item of xml.match(itemRegex) || []) {
-    const m = item.match(titleRegex);
+  const itemRx = /<item[\s\S]*?<\/item>/gi;
+  const titleRx = /<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i;
+  for (const item of xml.match(itemRx) || []) {
+    const m = item.match(titleRx);
     if (m) {
       const t = m[1]
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'").trim();
+        .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
       if (t) titles.push(t);
     }
   }
   return titles.slice(0, 8);
 }
 
-async function fetchGoogleNews(question) {
-  const keywords = question
-    .replace(/[?'"()]/g, '')
-    .split(/\s+/)
-    .filter(w => w.length > 4)
-    .slice(0, 5)
-    .join(' ');
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(keywords)}&hl=tr&gl=TR&ceid=TR:tr`;
+async function fetchRSS(url) {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ArcPredict/1.0)' },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return [];
     return parseTitlesFromRSS(await res.text());
   } catch { return []; }
 }
 
-async function resolveWithClaude(question, headlines, client) {
+async function fetchGoogleNews(question) {
+  const kws = question.replace(/[?'"()]/g, '').split(/\s+/).filter(w => w.length > 3).slice(0, 5).join(' ');
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(kws)}&hl=tr&gl=TR&ceid=TR:tr`;
+  return fetchRSS(url);
+}
+
+// isStructured=true: headlines is a single block of structured data, not a news list
+async function askClaude(question, headlines, anthropic, isStructured = false) {
   if (!headlines.length) return null;
-  const response = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 16,
+  const body = isStructured
+    ? headlines.join('\n')
+    : headlines.map(h => `- ${h}`).join('\n');
+
+  const resp = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 20,
     messages: [{
-      role: "user",
-      content: `Asagidaki guncel haber basliklarini inceleyerek su soruyu cevapla:\n\nSoru: "${question}"\n\nGuncel haberler:\n${headlines.map(h => `- ${h}`).join('\n')}\n\nSADECE "EVET", "HAYIR" veya "BELIRSIZ" yaz.`
-    }]
+      role: 'user',
+      content: `Soru: "${question}"\n\nGuncel bilgi:\n${body}\n\nSADECE "EVET", "HAYIR" veya "BELIRSIZ" yaz.`,
+    }],
   });
-  const answer = response.content.find(b => b.type === 'text')?.text?.trim().toUpperCase();
-  if (answer?.includes('EVET')) return true;
-  if (answer?.includes('HAYIR')) return false;
+  const answer = resp.content.find(b => b.type === 'text')?.text?.trim().toUpperCase() || '';
+  if (answer.includes('EVET')) return true;
+  if (answer.includes('HAYIR')) return false;
   return null;
 }
 
+async function resolveNews(question, category, anthropic) {
+  const feeds = RSS_BY_CATEGORY[category] || RSS_BY_CATEGORY.siyaset;
+
+  const [feed1, feed2, google] = await Promise.all([
+    fetchRSS(feeds[0]),
+    feeds[1] ? fetchRSS(feeds[1]) : Promise.resolve([]),
+    fetchGoogleNews(question),
+  ]);
+
+  const allHeadlines = [...new Set([...google, ...feed1, ...feed2])].slice(0, 15);
+
+  if (!allHeadlines.length) {
+    return { result: null, reason: 'RSS + Google News boş — manuel inceleme', source: 'none' };
+  }
+
+  const result = await askClaude(question, allHeadlines, anthropic, false);
+  const sample = allHeadlines.slice(0, 2).join(' | ').slice(0, 100);
+
+  return {
+    result,
+    reason: result === null
+      ? `Claude BELİRSİZ (${allHeadlines.length} haber) | "${sample}"`
+      : `${category.toUpperCase()} RSS+Google+Claude (${allHeadlines.length} haber) | "${sample}"`,
+    source: `${category}-rss+claude`,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN HANDLER
+// ═══════════════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || req.headers['authorization'] !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY eksik' });
   if (!process.env.PRIVATE_KEY) return res.status(500).json({ error: 'PRIVATE_KEY eksik' });
 
   const log = [];
+  const inconclusiveItems = [];
+
   try {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, wallet);
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const total = Number(await contract.predictionCount());
     const now = Math.floor(Date.now() / 1000);
-    log.push(`Toplam tahmin: ${total}`);
+    log.push(`Toplam tahmin: ${total} | ${new Date().toISOString()}`);
 
-    let fixtures = [];
-    if (process.env.API_FOOTBALL_KEY) {
-      fixtures = await fetchFootballFixtures();
-      log.push(`${fixtures.length} mac verisi alindi`);
-    }
-
-    let resolved = 0, skipped = 0, errors = 0;
+    let resolved = 0, skipped = 0, inconclusive = 0, errors = 0;
 
     for (let id = 0; id < total; id++) {
       const [question, deadline, isResolved] = await contract.getPrediction(id);
-
       if (isResolved) { skipped++; continue; }
       if (Number(deadline) > now) { skipped++; continue; }
 
-      const category = categorize(question);
-      let result = null;
+      const category = detectCategory(question);
+      let resolution;
 
-      if (category === 'futbol') {
-        if (process.env.API_FOOTBALL_KEY) result = await resolveFootball(question, fixtures, client);
-        if (result === null) result = await resolveWithClaude(question, await fetchGoogleNews(question), client);
-      } else if (category === 'kripto') {
-        result = await resolveCrypto(question);
-        if (result === null) result = await resolveWithClaude(question, await fetchGoogleNews(question), client);
+      if (category === 'kripto') {
+        resolution = await resolveCrypto(question, deadline);
+      } else if (category === 'spor') {
+        resolution = await resolveSports(question, deadline, anthropic);
       } else {
-        result = await resolveWithClaude(question, await fetchGoogleNews(question), client);
+        resolution = await resolveNews(question, category, anthropic);
       }
 
-      if (result === null) { skipped++; continue; }
+      const { result, reason, source } = resolution;
+
+      if (result === null) {
+        inconclusive++;
+        const entry = `[${id}] INCONCLUSIVE [${category}/${source}] — ${reason}`;
+        log.push(entry);
+        inconclusiveItems.push({ id, category, question: question.slice(0, 80) });
+        continue;
+      }
 
       try {
         const tx = await contract.resolvePrediction(id, result);
         await tx.wait();
-        log.push(`[${id}] ${result ? 'EVET' : 'HAYIR'} — Tx: ${tx.hash}`);
+        log.push(`[${id}] ${result ? 'EVET✅' : 'HAYIR❌'} [${category}/${source}] — ${reason} | Tx:${tx.hash.slice(0, 10)}`);
         resolved++;
       } catch (err) {
-        log.push(`[${id}] Hata: ${err.message}`);
+        log.push(`[${id}] TX HATA [${category}]: ${err.message.slice(0, 80)}`);
         errors++;
       }
     }
 
-    return res.status(200).json({ ok: true, resolved, skipped, errors, log });
+    log.push('');
+    log.push(`═══ ÖZET ═══`);
+    log.push(`Çözümlendi: ${resolved} | Belirsiz/Manuel: ${inconclusive} | Atlandı: ${skipped} | Hata: ${errors}`);
+    if (inconclusiveItems.length) {
+      log.push('');
+      log.push('Manuel inceleme gereken tahminler:');
+      inconclusiveItems.forEach(e => log.push(`  [${e.id}] ${e.category}: ${e.question}`));
+    }
+
+    return res.status(200).json({ ok: true, resolved, skipped, inconclusive, errors, log });
   } catch (err) {
     log.push(`Fatal: ${err.message}`);
     return res.status(500).json({ ok: false, error: err.message, log });
