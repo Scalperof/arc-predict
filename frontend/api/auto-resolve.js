@@ -434,7 +434,15 @@ async function resolveNews(question, category, anthropic) {
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN HANDLER
+// Optimized for Vercel 60s timeout:
+// - Reads all predictions in parallel batches (5 at a time)
+// - Prioritizes predictions with stakes (non-zero pool)
+// - Caps at MAX_PER_RUN resolutions per invocation
+// - ?all=1 query param disables the cap (for manual runs)
 // ═══════════════════════════════════════════════════════════════════
+const READ_BATCH = 5;
+const MAX_PER_RUN = 10;
+
 module.exports = async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || req.headers['authorization'] !== `Bearer ${cronSecret}`) {
@@ -443,6 +451,7 @@ module.exports = async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY eksik' });
   if (!process.env.PRIVATE_KEY) return res.status(500).json({ error: 'PRIVATE_KEY eksik' });
 
+  const runAll = req.query?.all === '1';
   const log = [];
   const inconclusiveItems = [];
 
@@ -454,15 +463,40 @@ module.exports = async function handler(req, res) {
 
     const total = Number(await contract.predictionCount());
     const now = Math.floor(Date.now() / 1000);
-    log.push(`Toplam tahmin: ${total} | ${new Date().toISOString()}`);
+    log.push(`Toplam: ${total} tahmin | ${new Date().toISOString()}`);
 
-    let resolved = 0, skipped = 0, inconclusive = 0, errors = 0;
+    // ── Batch-read all predictions in parallel ──
+    const allPredictions = [];
+    for (let base = 0; base < total; base += READ_BATCH) {
+      const ids = Array.from({ length: Math.min(READ_BATCH, total - base) }, (_, i) => base + i);
+      const batch = await Promise.all(ids.map(id =>
+        contract.getPrediction(id)
+          .then(([question, deadline, isResolved, result, yes, no]) =>
+            ({ id, question, deadline: Number(deadline), isResolved, yes: BigInt(yes), no: BigInt(no) }))
+          .catch(() => null)
+      ));
+      allPredictions.push(...batch.filter(Boolean));
+    }
 
-    for (let id = 0; id < total; id++) {
-      const [question, deadline, isResolved] = await contract.getPrediction(id);
-      if (isResolved) { skipped++; continue; }
-      if (Number(deadline) > now) { skipped++; continue; }
+    // ── Filter: unresolved + past deadline ──
+    const pending = allPredictions.filter(p => !p.isResolved && p.deadline <= now);
+    log.push(`Bekleyen (vadesi geçmiş): ${pending.length}`);
 
+    // ── Prioritize: non-zero stake predictions first, then oldest ──
+    pending.sort((a, b) => {
+      const aStake = a.yes + a.no > 0n ? 1 : 0;
+      const bStake = b.yes + b.no > 0n ? 1 : 0;
+      if (bStake !== aStake) return bStake - aStake; // stakes first
+      return a.deadline - b.deadline; // then oldest
+    });
+
+    const toProcess = runAll ? pending : pending.slice(0, MAX_PER_RUN);
+    log.push(`İşlenecek: ${toProcess.length}${runAll ? ' (tümü)' : ` / ${pending.length} (max ${MAX_PER_RUN})`}`);
+
+    let resolved = 0, inconclusive = 0, errors = 0;
+
+    for (const pred of toProcess) {
+      const { id, question, deadline } = pred;
       const category = detectCategory(question);
       let resolution;
 
@@ -478,8 +512,7 @@ module.exports = async function handler(req, res) {
 
       if (result === null) {
         inconclusive++;
-        const entry = `[${id}] INCONCLUSIVE [${category}/${source}] — ${reason}`;
-        log.push(entry);
+        log.push(`[${id}] BELIRSIZ [${category}/${source}] — ${reason}`);
         inconclusiveItems.push({ id, category, question: question.slice(0, 80) });
         continue;
       }
@@ -496,15 +529,15 @@ module.exports = async function handler(req, res) {
     }
 
     log.push('');
-    log.push(`═══ ÖZET ═══`);
-    log.push(`Çözümlendi: ${resolved} | Belirsiz/Manuel: ${inconclusive} | Atlandı: ${skipped} | Hata: ${errors}`);
+    log.push('═══ ÖZET ═══');
+    log.push(`Çözümlendi: ${resolved} | Belirsiz/Manuel: ${inconclusive} | Hata: ${errors} | Kalan: ${pending.length - toProcess.length}`);
     if (inconclusiveItems.length) {
       log.push('');
       log.push('Manuel inceleme gereken tahminler:');
       inconclusiveItems.forEach(e => log.push(`  [${e.id}] ${e.category}: ${e.question}`));
     }
 
-    return res.status(200).json({ ok: true, resolved, skipped, inconclusive, errors, log });
+    return res.status(200).json({ ok: true, resolved, inconclusive, errors, remaining: pending.length - toProcess.length, log });
   } catch (err) {
     log.push(`Fatal: ${err.message}`);
     return res.status(500).json({ ok: false, error: err.message, log });
