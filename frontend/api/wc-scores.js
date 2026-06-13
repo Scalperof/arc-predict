@@ -2,7 +2,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
 
-  const token = process.env.FOOTBALL_API_TOKEN;
+  const token = (process.env.FOOTBALL_API_TOKEN || '').replace(/^﻿/, '').trim();
   if (!token) return res.status(500).json({ error: 'FOOTBALL_API_TOKEN not configured' });
 
   try {
