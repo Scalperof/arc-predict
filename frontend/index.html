@@ -143,6 +143,23 @@
     /* ── Share button ── */
     .btn-share { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-top: 0.5rem; }
     .btn-share:hover { border-color: var(--accent); color: var(--text); }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .section-header .section-title { margin-bottom: 0; }
+    .admin-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .admin-btn:hover { opacity: 0.85; }
+    .create-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 300; }
+    .create-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; max-width: 480px; width: 92%; }
+    .create-box h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }
+    .create-field { margin-bottom: 1rem; }
+    .create-field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .create-field textarea, .create-field input[type=datetime-local] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 0.65rem 0.85rem; font-size: 0.9rem; font-family: inherit; resize: vertical; box-sizing: border-box; }
+    .create-field textarea { min-height: 80px; }
+    .create-field input[type=datetime-local]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+    .create-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+    .btn-cancel { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.55rem 1.1rem; border-radius: 8px; font-size: 0.88rem; cursor: pointer; }
+    .btn-submit { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; padding: 0.55rem 1.4rem; border-radius: 8px; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
+    .btn-submit:hover { opacity: 0.85; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
     .share-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
     .share-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; max-width: 420px; width: 90%; }
     .share-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; }
@@ -202,7 +219,10 @@
       <div class="stat-card"><div class="value" id="statActive">—</div><div class="label" data-i18n="statActiveLabel"></div></div>
       <div class="stat-card"><div class="value" id="statPool">—</div><div class="label" data-i18n="statPoolLabel"></div></div>
     </div>
-    <div class="section-title" data-i18n="sectionPredictions"></div>
+    <div class="section-header">
+      <div class="section-title" data-i18n="sectionPredictions"></div>
+      <button id="adminCreateBtn" class="admin-btn" style="display:none" onclick="openCreateModal()"></button>
+    </div>
     <div class="filter-bar" id="filterBar">
       <button class="filter-btn active" data-cat="tumu" onclick="setFilter('tumu')" data-i18n="filterAll"></button>
       <button class="filter-btn" data-cat="siyaset" onclick="setFilter('siyaset')" data-i18n="filterPolitics"></button>
@@ -271,6 +291,23 @@
     </div>
   </div>
 </main>
+<div id="createModal" class="create-modal" style="display:none" onclick="if(event.target===this)closeCreateModal()">
+  <div class="create-box">
+    <h3 id="createModalTitle"></h3>
+    <div class="create-field">
+      <label id="createQuestionLabel"></label>
+      <textarea id="createQuestion" rows="3" id="createQuestion"></textarea>
+    </div>
+    <div class="create-field">
+      <label id="createDeadlineLabel"></label>
+      <input type="datetime-local" id="createDeadline">
+    </div>
+    <div class="create-footer">
+      <button class="btn-cancel" onclick="closeCreateModal()" id="createCancelBtn"></button>
+      <button class="btn-submit" id="createSubmitBtn" onclick="submitCreatePrediction()"></button>
+    </div>
+  </div>
+</div>
 <div id="shareModal" class="share-modal" style="display:none" onclick="if(event.target===this)closeShare()">
   <div class="share-box">
     <h3 data-i18n="shareTitle"></h3>
@@ -288,6 +325,10 @@
   const TRANSLATIONS = {
     tr: {
       connectBtn: 'MetaMask Bağla', connectedBtn: 'Bağlandı ✓', disconnect: 'Bağlantıyı Kes',
+      adminCreateBtn: '+ Tahmin Oluştur',
+      createModalTitle: 'Yeni Tahmin Oluştur', createQuestionLabel: 'Soru', createDeadlineLabel: 'Son Tarih',
+      createCancel: 'İptal', createSubmit: 'Oluştur', createSubmitting: 'Gönderiliyor...',
+      createSuccess: 'Tahmin oluşturuldu!', createError: 'Oluşturma hatası:',
       tabPredictions: '🔮 Tahminler', tabMatches: '⚽ Maçlar', tabLeaderboard: '🏆 Liderlik', tabProfile: '👤 Profil', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Geleceği Tahmin Et, Kazan', heroSub: 'Arc Blockchain üzerinde merkezi olmayan tahmin oyunu',
       statTotalLabel: 'Toplam Tahmin', statActiveLabel: 'Aktif Bahis', statPoolLabel: 'Toplam Havuz',
@@ -333,6 +374,10 @@
     },
     en: {
       connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓', disconnect: 'Disconnect',
+      adminCreateBtn: '+ Create Prediction',
+      createModalTitle: 'New Prediction', createQuestionLabel: 'Question', createDeadlineLabel: 'Deadline',
+      createCancel: 'Cancel', createSubmit: 'Create', createSubmitting: 'Submitting...',
+      createSuccess: 'Prediction created!', createError: 'Create error:',
       tabPredictions: '🔮 Predictions', tabMatches: '⚽ Matches', tabLeaderboard: '🏆 Leaderboard', tabProfile: '👤 Profile', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Predict the Future, Win', heroSub: 'Decentralized prediction game on Arc Blockchain',
       statTotalLabel: 'Total Predictions', statActiveLabel: 'Active Bets', statPoolLabel: 'Total Pool',
@@ -388,6 +433,7 @@
   function t(key) { return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.tr[key] ?? key; }
 
   let walletConnected = false;
+  let isAdmin = false;
 
   function applyTranslations() {
     document.documentElement.lang = lang;
@@ -400,6 +446,8 @@
       }
     });
     document.getElementById('disconnectBtn').textContent = t('disconnect');
+    const adminBtn = document.getElementById('adminCreateBtn');
+    if (adminBtn && isAdmin) adminBtn.textContent = t('adminCreateBtn');
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.textContent = lang === 'tr' ? 'EN' : 'TR';
   }
@@ -428,7 +476,9 @@
     "function placeBet(uint256 predictionId, bool isYes) payable",
     "function claimWinnings(uint256 predictionId) external",
     "function getPrediction(uint256 id) view returns (string question, uint256 deadline, bool resolved, bool result, uint256 totalYes, uint256 totalNo)",
-    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)"
+    "function getUserBets(uint256 predictionId, address user) view returns (uint256 yesAmount, uint256 noAmount, bool claimed)",
+    "function owner() view returns (address)",
+    "function createPrediction(string calldata question, uint256 deadline) external"
   ];
   const WC_ABI = [
     "event BetPlaced(uint256 indexed matchId, address indexed user, uint8 outcome, uint256 amount)",
@@ -606,6 +656,12 @@
       connectBtn.textContent = t('connectedBtn');
       connectBtn.style.background="rgba(34,197,94,0.2)";
       toast(t('connected')+" "+shortAddr(userAddress),"success");
+      contract.owner().then(ownerAddr => {
+        isAdmin = ownerAddr.toLowerCase() === userAddress.toLowerCase();
+        const adminBtn = document.getElementById("adminCreateBtn");
+        adminBtn.textContent = t('adminCreateBtn');
+        adminBtn.style.display = isAdmin ? "inline-block" : "none";
+      }).catch(() => {});
       loadCryptoPrices();
       await loadPredictions();
     } catch(err){toast(t('connectError')+" "+(err.message||err),"error");}
@@ -613,13 +669,52 @@
 
   function disconnectWallet() {
     userAddress = null; signer = null; contract = null; wcContract = null; provider = null;
-    walletConnected = false;
+    walletConnected = false; isAdmin = false;
+    document.getElementById("adminCreateBtn").style.display = "none";
     const connectBtn = document.getElementById("connectBtn");
     connectBtn.textContent = t('connectBtn');
     connectBtn.style.background = "";
     document.getElementById("walletAddr").style.display = "none";
     document.getElementById("networkBadge").style.display = "none";
     document.getElementById("disconnectMenu").classList.remove("open");
+  }
+
+  function openCreateModal() {
+    document.getElementById('createModalTitle').textContent = t('createModalTitle');
+    document.getElementById('createQuestionLabel').textContent = t('createQuestionLabel');
+    document.getElementById('createDeadlineLabel').textContent = t('createDeadlineLabel');
+    document.getElementById('createCancelBtn').textContent = t('createCancel');
+    document.getElementById('createSubmitBtn').textContent = t('createSubmit');
+    document.getElementById('createQuestion').value = '';
+    // Default deadline: 48h from now
+    const d = new Date(Date.now() + 48 * 3600 * 1000);
+    d.setMinutes(0, 0, 0);
+    document.getElementById('createDeadline').value = d.toISOString().slice(0, 16);
+    document.getElementById('createModal').style.display = 'flex';
+  }
+  function closeCreateModal() { document.getElementById('createModal').style.display = 'none'; }
+
+  async function submitCreatePrediction() {
+    const question = document.getElementById('createQuestion').value.trim();
+    const deadlineVal = document.getElementById('createDeadline').value;
+    if (!question) { toast(t('validAmount'), 'error'); return; }
+    if (!deadlineVal) { toast(t('validAmount'), 'error'); return; }
+    const deadlineUnix = Math.floor(new Date(deadlineVal).getTime() / 1000);
+    if (deadlineUnix <= Math.floor(Date.now() / 1000)) { toast(t('createError') + ' deadline must be in the future', 'error'); return; }
+    const btn = document.getElementById('createSubmitBtn');
+    btn.disabled = true; btn.textContent = t('createSubmitting');
+    try {
+      const tx = await contract.createPrediction(question, deadlineUnix);
+      toast(t('sendingTx'), 'info');
+      await tx.wait();
+      toast(t('createSuccess'), 'success');
+      closeCreateModal();
+      await loadPredictions();
+    } catch(err) {
+      toast(t('createError') + ' ' + (err.reason || err.message || err), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = t('createSubmit');
+    }
   }
 
   async function switchToArc() {
