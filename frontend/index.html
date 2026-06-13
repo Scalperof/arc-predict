@@ -22,6 +22,11 @@
     .wallet-info { display: flex; align-items: center; gap: 0.75rem; }
     .wallet-addr { background: var(--surface); border: 1px solid var(--border); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.82rem; color: var(--muted); font-family: monospace; }
     .network-badge { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .wallet-menu { position: relative; }
+    .disconnect-menu { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.4rem; min-width: 160px; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none; }
+    .disconnect-menu.open { display: block; }
+    .disconnect-btn { width: 100%; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 0.5rem 0.9rem; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: left; transition: background 0.15s; }
+    .disconnect-btn:hover { background: rgba(239,68,68,0.22); }
     .lang-toggle { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
     .lang-toggle:hover { border-color: var(--accent); color: var(--text); }
     main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
@@ -169,7 +174,12 @@
     <button id="langToggle" class="lang-toggle" onclick="toggleLang()">EN</button>
     <span id="networkBadge" class="network-badge" style="display:none">Arc Testnet</span>
     <span id="walletAddr" class="wallet-addr" style="display:none"></span>
-    <button id="connectBtn" data-i18n="connectBtn"></button>
+    <div class="wallet-menu" id="walletMenu">
+      <button id="connectBtn" data-i18n="connectBtn"></button>
+      <div class="disconnect-menu" id="disconnectMenu">
+        <button class="disconnect-btn" id="disconnectBtn"></button>
+      </div>
+    </div>
   </div>
 </header>
 <main>
@@ -277,7 +287,7 @@
   // ── i18n ────────────────────────────────────────────────────────────────────
   const TRANSLATIONS = {
     tr: {
-      connectBtn: 'MetaMask Bağla', connectedBtn: 'Bağlandı ✓',
+      connectBtn: 'MetaMask Bağla', connectedBtn: 'Bağlandı ✓', disconnect: 'Bağlantıyı Kes',
       tabPredictions: '🔮 Tahminler', tabMatches: '⚽ Maçlar', tabLeaderboard: '🏆 Liderlik', tabProfile: '👤 Profil', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Geleceği Tahmin Et, Kazan', heroSub: 'Arc Blockchain üzerinde merkezi olmayan tahmin oyunu',
       statTotalLabel: 'Toplam Tahmin', statActiveLabel: 'Aktif Bahis', statPoolLabel: 'Toplam Havuz',
@@ -322,7 +332,7 @@
       wcGroup: 'Grup', wcPlaceBet: '⚽ Bahis Yap', wcPickMatch: 'Aşağıdaki maçlardan birini seçerek bahis yap',
     },
     en: {
-      connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓',
+      connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓', disconnect: 'Disconnect',
       tabPredictions: '🔮 Predictions', tabMatches: '⚽ Matches', tabLeaderboard: '🏆 Leaderboard', tabProfile: '👤 Profile', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Predict the Future, Win', heroSub: 'Decentralized prediction game on Arc Blockchain',
       statTotalLabel: 'Total Predictions', statActiveLabel: 'Active Bets', statPoolLabel: 'Total Pool',
@@ -389,6 +399,7 @@
         el.textContent = t(key);
       }
     });
+    document.getElementById('disconnectBtn').textContent = t('disconnect');
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.textContent = lang === 'tr' ? 'EN' : 'TR';
   }
@@ -563,7 +574,19 @@
     return `${m}${t('unitMin')} ${t('unitLeft')}`;
   }
 
-  document.getElementById("connectBtn").addEventListener("click", connectWallet);
+  document.getElementById("connectBtn").addEventListener("click", () => {
+    if (walletConnected) {
+      document.getElementById("disconnectMenu").classList.toggle("open");
+    } else {
+      connectWallet();
+    }
+  });
+  document.getElementById("disconnectBtn").textContent = t('disconnect');
+  document.getElementById("disconnectBtn").addEventListener("click", disconnectWallet);
+  document.addEventListener("click", e => {
+    const menu = document.getElementById("walletMenu");
+    if (!menu.contains(e.target)) document.getElementById("disconnectMenu").classList.remove("open");
+  });
 
   async function connectWallet() {
     if(!window.ethereum){toast(t('noMM'),"error");return;}
@@ -586,6 +609,17 @@
       loadCryptoPrices();
       await loadPredictions();
     } catch(err){toast(t('connectError')+" "+(err.message||err),"error");}
+  }
+
+  function disconnectWallet() {
+    userAddress = null; signer = null; contract = null; wcContract = null; provider = null;
+    walletConnected = false;
+    const connectBtn = document.getElementById("connectBtn");
+    connectBtn.textContent = t('connectBtn');
+    connectBtn.style.background = "";
+    document.getElementById("walletAddr").style.display = "none";
+    document.getElementById("networkBadge").style.display = "none";
+    document.getElementById("disconnectMenu").classList.remove("open");
   }
 
   async function switchToArc() {
