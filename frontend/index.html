@@ -146,7 +146,12 @@
     .btn-twitter { background: #1da1f2; border: none; color: #fff; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem; }
     .btn-farcaster { background: #8a63d2; border: none; color: #fff; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem; }
     .btn-close-share { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 0.55rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.88rem; margin-left: auto; }
-    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 1rem; font-size: 0.85rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } }
+    /* ── WC 2026 Scores ── */
+    .tab-bar { overflow-x: auto; }
+    .wc-score { font-size: 1.5rem; font-weight: 800; color: var(--text); padding: 0 0.75rem; flex-shrink: 0; min-width: 90px; text-align: center; }
+    .wc-score.live { color: #ef4444; }
+    .wc-group { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 0.75rem; font-size: 0.82rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } .wc-score { font-size: 1.2rem; min-width: 70px; } }
   </style>
 </head>
 <body>
@@ -172,6 +177,7 @@
     <button class="tab-btn" onclick="switchTab('maclar')" data-i18n="tabMatches"></button>
     <button class="tab-btn" onclick="switchTab('liderlik')" data-i18n="tabLeaderboard"></button>
     <button class="tab-btn" onclick="switchTab('profil')" data-i18n="tabProfile"></button>
+    <button class="tab-btn" onclick="switchTab('wc2026')" data-i18n="tabWC2026"></button>
   </div>
 
   <!-- TAB: PREDICTIONS -->
@@ -235,6 +241,20 @@
       <div id="historyContainer"></div>
     </div>
   </div>
+
+  <!-- TAB: WC 2026 LIVE SCORES -->
+  <div id="tab-wc2026" class="tab-panel">
+    <div class="section-title" data-i18n="sectionWCScores"></div>
+    <div class="filter-bar" id="wcFilterBar">
+      <button class="filter-btn active" data-wc="all" onclick="setWCFilter('all')" data-i18n="wcFilterAll"></button>
+      <button class="filter-btn" data-wc="live" onclick="setWCFilter('live')" data-i18n="wcFilterLive"></button>
+      <button class="filter-btn" data-wc="scheduled" onclick="setWCFilter('scheduled')" data-i18n="wcFilterScheduled"></button>
+      <button class="filter-btn" data-wc="finished" onclick="setWCFilter('finished')" data-i18n="wcFilterFinished"></button>
+    </div>
+    <div id="wcScores">
+      <div class="empty-state" data-i18n="wcLoading"></div>
+    </div>
+  </div>
 </main>
 <div id="shareModal" class="share-modal" style="display:none" onclick="if(event.target===this)closeShare()">
   <div class="share-box">
@@ -253,7 +273,7 @@
   const TRANSLATIONS = {
     tr: {
       connectBtn: 'MetaMask Bağla', connectedBtn: 'Bağlandı ✓',
-      tabPredictions: '🔮 Tahminler', tabMatches: '⚽ Maçlar', tabLeaderboard: '🏆 Liderlik', tabProfile: '👤 Profil',
+      tabPredictions: '🔮 Tahminler', tabMatches: '⚽ Maçlar', tabLeaderboard: '🏆 Liderlik', tabProfile: '👤 Profil', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Geleceği Tahmin Et, Kazan', heroSub: 'Arc Blockchain üzerinde merkezi olmayan tahmin oyunu',
       statTotalLabel: 'Toplam Tahmin', statActiveLabel: 'Aktif Bahis', statPoolLabel: 'Toplam Havuz',
       sectionPredictions: 'Tahminler',
@@ -289,10 +309,16 @@
       histBet: 'Bahis:', histPred: 'Tahmin #', histMatch: 'Maç #',
       resultWin: '✓ KAZANDI', resultLoss: '✗ KAYBETTİ', resultPending: '⏳ Bekliyor',
       loadingBets: 'bahis yükleniyor...',
+      sectionWCScores: 'FIFA WC 2026 Canlı Sonuçlar',
+      wcFilterAll: 'Tümü', wcFilterLive: '🔴 Canlı', wcFilterScheduled: 'Programda', wcFilterFinished: 'Bitti',
+      wcLoading: 'Maçlar yükleniyor...', wcError: 'Maçlar yüklenemedi.', wcEmpty: 'Maç bulunamadı.',
+      wcLive: 'CANLI', wcFin: 'BİTTİ', wcSch: 'PROGRAMDA',
+      wcGroupStage: 'Grup Aşaması', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
+      wcGroup: 'Grup',
     },
     en: {
       connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓',
-      tabPredictions: '🔮 Predictions', tabMatches: '⚽ Matches', tabLeaderboard: '🏆 Leaderboard', tabProfile: '👤 Profile',
+      tabPredictions: '🔮 Predictions', tabMatches: '⚽ Matches', tabLeaderboard: '🏆 Leaderboard', tabProfile: '👤 Profile', tabWC2026: '⚽ WC 2026',
       heroTitle: 'Predict the Future, Win', heroSub: 'Decentralized prediction game on Arc Blockchain',
       statTotalLabel: 'Total Predictions', statActiveLabel: 'Active Bets', statPoolLabel: 'Total Pool',
       sectionPredictions: 'Predictions',
@@ -328,6 +354,12 @@
       histBet: 'Bet:', histPred: 'Prediction #', histMatch: 'Match #',
       resultWin: '✓ WON', resultLoss: '✗ LOST', resultPending: '⏳ Pending',
       loadingBets: 'bets loading...',
+      sectionWCScores: 'FIFA WC 2026 Live Scores',
+      wcFilterAll: 'All', wcFilterLive: '🔴 Live', wcFilterScheduled: 'Scheduled', wcFilterFinished: 'Finished',
+      wcLoading: 'Loading matches...', wcError: 'Failed to load matches.', wcEmpty: 'No matches found.',
+      wcLive: 'LIVE', wcFin: 'FIN', wcSch: 'SCH',
+      wcGroupStage: 'Group Stage', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
+      wcGroup: 'Group',
     }
   };
 
@@ -366,6 +398,7 @@
       container.innerHTML = '';
       allMatches.forEach(m => container.appendChild(buildMatchCard(m)));
     }
+    if (allWCMatches.length) renderWCScores();
   }
 
   // ── App constants ────────────────────────────────────────────────────────────
@@ -503,12 +536,13 @@
   }
 
   function switchTab(name) {
-    const tabs = ['tahminler','maclar','liderlik','profil'];
+    const tabs = ['tahminler','maclar','liderlik','profil','wc2026'];
     document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i]===name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+name));
     if (name==='maclar' && wcContract) loadMatches();
     if (name==='liderlik') loadLeaderboard();
     if (name==='profil') loadProfile();
+    if (name==='wc2026') loadWCScores();
   }
 
   function toast(msg, type="info") { const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toastContainer").appendChild(el); setTimeout(()=>el.remove(),4000); }
@@ -949,6 +983,104 @@
     } catch (err) {
       histContainer.innerHTML = `<div class="empty-state">${t('loadError')} ${err.message}</div>`;
     }
+  }
+
+  // ── WC 2026 LIVE SCORES ──────────────────────────────────────────────────────
+  let allWCMatches = [];
+  let wcFilter = 'all';
+  let wcScoresLoaded = false;
+
+  function setWCFilter(f) {
+    wcFilter = f;
+    document.querySelectorAll('#wcFilterBar .filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.wc === f);
+    });
+    renderWCScores();
+  }
+
+  function renderWCScores() {
+    const container = document.getElementById('wcScores');
+    if (!container) return;
+    let matches = allWCMatches;
+    if (wcFilter === 'live') {
+      matches = matches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+    } else if (wcFilter === 'scheduled') {
+      matches = matches.filter(m => m.status === 'SCHEDULED' || m.status === 'TIMED');
+    } else if (wcFilter === 'finished') {
+      matches = matches.filter(m => m.status === 'FINISHED');
+    }
+    if (!matches.length) {
+      container.innerHTML = `<div class="empty-state">${t('wcEmpty')}</div>`;
+      return;
+    }
+    container.innerHTML = '';
+    matches.forEach(m => container.appendChild(buildWCMatchCard(m)));
+  }
+
+  async function loadWCScores() {
+    const container = document.getElementById('wcScores');
+    if (!container) return;
+    if (wcScoresLoaded && allWCMatches.length) { renderWCScores(); return; }
+    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('wcLoading')}</div>`;
+    try {
+      const res = await fetch('/api/wc-scores', { signal: AbortSignal.timeout(10000) });
+      const data = await res.json();
+      if (!data.ok || !Array.isArray(data.matches)) throw new Error(data.error || 'No data');
+      allWCMatches = data.matches;
+      wcScoresLoaded = true;
+      renderWCScores();
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">${t('wcError')} ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function buildWCMatchCard(m) {
+    const isLive = m.status === 'IN_PLAY' || m.status === 'PAUSED';
+    const isFinished = m.status === 'FINISHED';
+
+    let badgeClass, badgeText;
+    if (isLive) { badgeClass = 'badge-live'; badgeText = t('wcLive'); }
+    else if (isFinished) { badgeClass = 'badge-finished'; badgeText = t('wcFin'); }
+    else { badgeClass = 'badge-upcoming'; badgeText = t('wcSch'); }
+
+    const scoreHome = m.score?.fullTime?.home ?? null;
+    const scoreAway = m.score?.fullTime?.away ?? null;
+    const hasScore = scoreHome !== null && scoreAway !== null && (isLive || isFinished);
+    const scoreHtml = hasScore
+      ? `<span class="wc-score${isLive ? ' live' : ''}">${scoreHome} - ${scoreAway}</span>`
+      : `<span class="match-vs">VS</span>`;
+
+    const stageMap = {
+      GROUP_STAGE: t('wcGroupStage'), LAST_16: t('wcLast16'),
+      QUARTER_FINALS: t('wcQF'), SEMI_FINALS: t('wcSF'),
+      THIRD_PLACE: t('wcTP'), FINAL: t('wcFinal')
+    };
+    const stageName = stageMap[m.stage] || (m.stage || '').replace(/_/g, ' ');
+    const groupName = m.group ? m.group.replace('GROUP_', t('wcGroup') + ' ') : '';
+    const stageLabel = groupName ? `${groupName} · ${stageName}` : stageName;
+
+    const matchDate = new Date(m.utcDate);
+    const locale = lang === 'tr' ? 'tr-TR' : 'en-GB';
+    const dateStr = matchDate.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })
+      + ' · ' + matchDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) + ' UTC';
+
+    const card = document.createElement('div');
+    card.className = 'match-card';
+    card.innerHTML = `
+      <div class="match-meta" style="margin-bottom:0.5rem">
+        <span class="wc-group">${escHtml(stageLabel)}</span>
+        <span class="match-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="match-teams">
+        <div class="team-name team-home">${escHtml(m.homeTeam?.name || '?')}</div>
+        ${scoreHtml}
+        <div class="team-name team-away">${escHtml(m.awayTeam?.name || '?')}</div>
+      </div>
+      <div class="match-meta" style="margin-top:0.5rem">
+        <span>📅 ${dateStr}</span>
+      </div>
+    `;
+    return card;
   }
 
   // ── SOCIAL SHARING ───────────────────────────────────────────────────────────
