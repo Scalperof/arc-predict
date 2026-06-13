@@ -313,7 +313,7 @@
       wcFilterAll: 'Tümü', wcFilterLive: '🔴 Canlı', wcFilterScheduled: 'Programda', wcFilterFinished: 'Bitti',
       wcLoading: 'Maçlar yükleniyor...', wcError: 'Maçlar yüklenemedi.', wcEmpty: 'Maç bulunamadı.',
       wcLive: 'CANLI', wcFin: 'BİTTİ', wcSch: 'PROGRAMDA',
-      wcGroupStage: 'Grup Aşaması', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
+      wcGroupStage: 'Grup Aşaması', wcLast32: 'Son 32', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
       wcGroup: 'Grup',
     },
     en: {
@@ -358,7 +358,7 @@
       wcFilterAll: 'All', wcFilterLive: '🔴 Live', wcFilterScheduled: 'Scheduled', wcFilterFinished: 'Finished',
       wcLoading: 'Loading matches...', wcError: 'Failed to load matches.', wcEmpty: 'No matches found.',
       wcLive: 'LIVE', wcFin: 'FIN', wcSch: 'SCH',
-      wcGroupStage: 'Group Stage', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
+      wcGroupStage: 'Group Stage', wcLast32: 'Round of 32', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
       wcGroup: 'Group',
     }
   };
@@ -1051,7 +1051,7 @@
       : `<span class="match-vs">VS</span>`;
 
     const stageMap = {
-      GROUP_STAGE: t('wcGroupStage'), LAST_16: t('wcLast16'),
+      GROUP_STAGE: t('wcGroupStage'), LAST_32: t('wcLast32'), LAST_16: t('wcLast16'),
       QUARTER_FINALS: t('wcQF'), SEMI_FINALS: t('wcSF'),
       THIRD_PLACE: t('wcTP'), FINAL: t('wcFinal')
     };
