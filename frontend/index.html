@@ -151,6 +151,11 @@
     .wc-score { font-size: 1.5rem; font-weight: 800; color: var(--text); padding: 0 0.75rem; flex-shrink: 0; min-width: 90px; text-align: center; }
     .wc-score.live { color: #ef4444; }
     .wc-group { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-place-bet { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; padding: 0.5rem 1.1rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem; margin-top: 0.75rem; width: 100%; transition: opacity 0.2s, transform 0.1s; box-shadow: 0 0 12px var(--glow); }
+    .btn-place-bet:hover { opacity: 0.85; transform: translateY(-1px); }
+    .match-highlight { border-color: var(--accent2) !important; box-shadow: 0 0 36px rgba(168,85,247,0.55) !important; }
+    @keyframes highlightPulse { 0%,100% { box-shadow: 0 0 36px rgba(168,85,247,0.55); } 50% { box-shadow: 0 0 56px rgba(168,85,247,0.85); } }
+    .match-highlight { animation: highlightPulse 1s ease-in-out 3; }
     @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 0.75rem; font-size: 0.82rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } .wc-score { font-size: 1.2rem; min-width: 70px; } }
   </style>
 </head>
@@ -314,7 +319,7 @@
       wcLoading: 'Maçlar yükleniyor...', wcError: 'Maçlar yüklenemedi.', wcEmpty: 'Maç bulunamadı.',
       wcLive: 'CANLI', wcFin: 'BİTTİ', wcSch: 'PROGRAMDA',
       wcGroupStage: 'Grup Aşaması', wcLast32: 'Son 32', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
-      wcGroup: 'Grup',
+      wcGroup: 'Grup', wcPlaceBet: '⚽ Bahis Yap', wcNoOnChain: 'Bu maç henüz zincirde yok.',
     },
     en: {
       connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓',
@@ -359,7 +364,7 @@
       wcLoading: 'Loading matches...', wcError: 'Failed to load matches.', wcEmpty: 'No matches found.',
       wcLive: 'LIVE', wcFin: 'FIN', wcSch: 'SCH',
       wcGroupStage: 'Group Stage', wcLast32: 'Round of 32', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
-      wcGroup: 'Group',
+      wcGroup: 'Group', wcPlaceBet: '⚽ Place Bet', wcNoOnChain: 'This match is not on-chain yet.',
     }
   };
 
@@ -763,6 +768,7 @@
 
     const card = document.createElement('div');
     card.className = 'match-card';
+    card.dataset.matchId = m.id;
     card.innerHTML = `
       <div class="match-teams">
         <div class="team-name team-home">${escHtml(m.homeTeam)}</div>
@@ -1083,8 +1089,38 @@
       <div class="match-meta" style="margin-top:0.5rem">
         <span>📅 ${dateStr}</span>
       </div>
+      <button class="btn-place-bet" onclick="goToMatchBet(${JSON.stringify(m.homeTeam?.name||'')},${JSON.stringify(m.awayTeam?.name||'')})">${t('wcPlaceBet')}</button>
     `;
     return card;
+  }
+
+  async function goToMatchBet(apiHome, apiAway) {
+    // Switch to Matches tab
+    const tabs = ['tahminler','maclar','liderlik','profil','wc2026'];
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i]==='maclar'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-maclar'));
+
+    if (!wcContract) { toast(t('connectFirst'), 'error'); return; }
+    if (allMatches.length === 0) await loadMatches();
+    if (!allMatches.length) return;
+
+    // Fuzzy match: normalise to lowercase alphanum, try contains both ways
+    const norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const nh = norm(apiHome), na = norm(apiAway);
+    const found = allMatches.find(m => {
+      const mh = norm(m.homeTeam), ma = norm(m.awayTeam);
+      const homeOk = mh === nh || mh.includes(nh) || nh.includes(mh);
+      const awayOk = ma === na || ma.includes(na) || na.includes(ma);
+      return homeOk && awayOk;
+    });
+
+    if (!found) { toast(t('wcNoOnChain'), 'info'); return; }
+
+    const card = document.querySelector(`[data-match-id="${found.id}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('match-highlight');
+    setTimeout(() => card.classList.remove('match-highlight'), 3000);
   }
 
   // ── SOCIAL SHARING ───────────────────────────────────────────────────────────
