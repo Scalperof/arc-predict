@@ -595,17 +595,21 @@
       const count=Number(await contract.predictionCount());
       document.getElementById("statTotal").textContent=count;
       if(count===0){container.innerHTML=`<div class="empty-state">${t('noPredictions')}</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
-      const PRED_BATCH=10;
+      const PRED_BATCH=5;
       const items=[];
       const updateStats=()=>{const now=Math.floor(Date.now()/1000);const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);document.getElementById("statActive").textContent=active.length;document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";};
-      await Promise.all(Array.from({length:Math.ceil(count/PRED_BATCH)},(_,bi)=>{
+      const numBatches=Math.ceil(count/PRED_BATCH);
+      for(let bi=0;bi<numBatches;bi++){
         const s=bi*PRED_BATCH,e=Math.min(s+PRED_BATCH,count);
-        return Promise.all(Array.from({length:e-s},(__,j)=>{
+        const batch=await Promise.all(Array.from({length:e-s},(__,j)=>{
           const i=s+j;
           return Promise.all([contract.getPrediction(i),contract.getUserBets(i,userAddress)])
-            .then(([p,userBets])=>({id:i,...parseP(p),userBets}));
-        })).then(batch=>{items.push(...batch);updateStats();});
-      }));
+            .then(([p,userBets])=>({id:i,...parseP(p),userBets}))
+            .catch(()=>null);
+        }));
+        items.push(...batch.filter(Boolean));
+        updateStats();
+      }
       allPredictions=items.slice().reverse();
       updateFilterCounts();
       renderFiltered();
