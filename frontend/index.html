@@ -22,6 +22,8 @@
     .wallet-info { display: flex; align-items: center; gap: 0.75rem; }
     .wallet-addr { background: var(--surface); border: 1px solid var(--border); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.82rem; color: var(--muted); font-family: monospace; }
     .network-badge { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .lang-toggle { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .lang-toggle:hover { border-color: var(--accent); color: var(--text); }
     main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
     .hero { text-align: center; margin-bottom: 2.5rem; }
     .hero h1 { font-size: 2.4rem; font-weight: 800; background: linear-gradient(135deg, #e2d9f3, var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.6rem; }
@@ -154,98 +156,219 @@
     Arc <span>Predict</span>
   </div>
   <div class="wallet-info">
+    <button id="langToggle" class="lang-toggle" onclick="toggleLang()">EN</button>
     <span id="networkBadge" class="network-badge" style="display:none">Arc Testnet</span>
     <span id="walletAddr" class="wallet-addr" style="display:none"></span>
-    <button id="connectBtn">MetaMask Bağla</button>
+    <button id="connectBtn" data-i18n="connectBtn"></button>
   </div>
 </header>
 <main>
   <div class="hero">
-    <h1>Geleceği Tahmin Et, Kazan</h1>
-    <p>Arc Blockchain üzerinde merkezi olmayan tahmin oyunu</p>
+    <h1 data-i18n="heroTitle"></h1>
+    <p data-i18n="heroSub"></p>
   </div>
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('tahminler')">🔮 Tahminler</button>
-    <button class="tab-btn" onclick="switchTab('maclar')">⚽ Maçlar</button>
-    <button class="tab-btn" onclick="switchTab('liderlik')">🏆 Liderlik</button>
-    <button class="tab-btn" onclick="switchTab('profil')">👤 Profil</button>
+    <button class="tab-btn active" onclick="switchTab('tahminler')" data-i18n="tabPredictions"></button>
+    <button class="tab-btn" onclick="switchTab('maclar')" data-i18n="tabMatches"></button>
+    <button class="tab-btn" onclick="switchTab('liderlik')" data-i18n="tabLeaderboard"></button>
+    <button class="tab-btn" onclick="switchTab('profil')" data-i18n="tabProfile"></button>
   </div>
 
-  <!-- TAB: TAHMİNLER -->
+  <!-- TAB: PREDICTIONS -->
   <div id="tab-tahminler" class="tab-panel active">
     <div class="stats-bar">
-      <div class="stat-card"><div class="value" id="statTotal">—</div><div class="label">Toplam Tahmin</div></div>
-      <div class="stat-card"><div class="value" id="statActive">—</div><div class="label">Aktif Bahis</div></div>
-      <div class="stat-card"><div class="value" id="statPool">—</div><div class="label">Toplam Havuz</div></div>
+      <div class="stat-card"><div class="value" id="statTotal">—</div><div class="label" data-i18n="statTotalLabel"></div></div>
+      <div class="stat-card"><div class="value" id="statActive">—</div><div class="label" data-i18n="statActiveLabel"></div></div>
+      <div class="stat-card"><div class="value" id="statPool">—</div><div class="label" data-i18n="statPoolLabel"></div></div>
     </div>
-    <div class="section-title">Tahminler</div>
+    <div class="section-title" data-i18n="sectionPredictions"></div>
     <div class="filter-bar" id="filterBar">
-      <button class="filter-btn active" data-cat="tumu" onclick="setFilter('tumu')">Tümü</button>
-      <button class="filter-btn" data-cat="siyaset" onclick="setFilter('siyaset')">🏛 Siyaset</button>
-      <button class="filter-btn" data-cat="ekonomi" onclick="setFilter('ekonomi')">📈 Ekonomi</button>
-      <button class="filter-btn" data-cat="magazin" onclick="setFilter('magazin')">🎬 Magazin</button>
-      <button class="filter-btn" data-cat="spor" onclick="setFilter('spor')">⚽ Spor</button>
-      <button class="filter-btn" data-cat="kripto" onclick="setFilter('kripto')">₿ Kripto</button>
+      <button class="filter-btn active" data-cat="tumu" onclick="setFilter('tumu')" data-i18n="filterAll"></button>
+      <button class="filter-btn" data-cat="siyaset" onclick="setFilter('siyaset')" data-i18n="filterPolitics"></button>
+      <button class="filter-btn" data-cat="ekonomi" onclick="setFilter('ekonomi')" data-i18n="filterEconomy"></button>
+      <button class="filter-btn" data-cat="magazin" onclick="setFilter('magazin')" data-i18n="filterEntertainment"></button>
+      <button class="filter-btn" data-cat="spor" onclick="setFilter('spor')" data-i18n="filterSports"></button>
+      <button class="filter-btn" data-cat="kripto" onclick="setFilter('kripto')" data-i18n="filterCrypto"></button>
     </div>
     <div id="predictions">
-      <div class="empty-state">MetaMask bağlandıktan sonra tahminler yüklenecek...</div>
+      <div class="empty-state" data-i18n="emptyConnectPred"></div>
     </div>
   </div>
 
-  <!-- TAB: MAÇLAR -->
+  <!-- TAB: MATCHES -->
   <div id="tab-maclar" class="tab-panel">
     <div class="stats-bar">
-      <div class="stat-card"><div class="value" id="statMatches">—</div><div class="label">Toplam Maç</div></div>
-      <div class="stat-card"><div class="value" id="statMatchPool">—</div><div class="label">Toplam Havuz</div></div>
-      <div class="stat-card"><div class="value" id="statMatchOpen">—</div><div class="label">Bahis Açık</div></div>
+      <div class="stat-card"><div class="value" id="statMatches">—</div><div class="label" data-i18n="statMatchesLabel"></div></div>
+      <div class="stat-card"><div class="value" id="statMatchPool">—</div><div class="label" data-i18n="statMatchPoolLabel"></div></div>
+      <div class="stat-card"><div class="value" id="statMatchOpen">—</div><div class="label" data-i18n="statMatchOpenLabel"></div></div>
     </div>
-    <div class="section-title">FIFA Dünya Kupası 2026</div>
+    <div class="section-title" data-i18n="sectionWC"></div>
     <div id="matches">
-      <div class="empty-state">MetaMask bağlandıktan sonra maçlar yüklenecek...</div>
+      <div class="empty-state" data-i18n="emptyConnectMatch"></div>
     </div>
   </div>
 
-  <!-- TAB: LİDERLİK TABLOSU -->
+  <!-- TAB: LEADERBOARD -->
   <div id="tab-liderlik" class="tab-panel">
     <div class="stats-bar" style="margin-bottom:1.5rem">
-      <div class="stat-card"><div class="value" id="lbStatPlayers">—</div><div class="label">Toplam Oyuncu</div></div>
-      <div class="stat-card"><div class="value" id="lbStatTopWin">—</div><div class="label">En Yüksek Kazanç</div></div>
-      <div class="stat-card"><div class="value" id="lbStatAvgAcc">—</div><div class="label">Ort. Doğruluk</div></div>
+      <div class="stat-card"><div class="value" id="lbStatPlayers">—</div><div class="label" data-i18n="lbStatPlayersLabel"></div></div>
+      <div class="stat-card"><div class="value" id="lbStatTopWin">—</div><div class="label" data-i18n="lbStatTopWinLabel"></div></div>
+      <div class="stat-card"><div class="value" id="lbStatAvgAcc">—</div><div class="label" data-i18n="lbStatAvgAccLabel"></div></div>
     </div>
-    <div class="section-title">En Çok Kazananlar</div>
+    <div class="section-title" data-i18n="sectionTopWinners"></div>
     <div id="leaderboardContainer">
-      <div class="empty-state">Liderlik tablosu yükleniyor...</div>
+      <div class="empty-state" data-i18n="emptyLeaderboard"></div>
     </div>
   </div>
 
-  <!-- TAB: PROFİL / TAHMİN GEÇMİŞİ -->
+  <!-- TAB: PROFILE -->
   <div id="tab-profil" class="tab-panel">
-    <div id="profileNotConnected" class="empty-state">MetaMask bağlandıktan sonra profiliniz görünecek.</div>
+    <div id="profileNotConnected" class="empty-state" data-i18n="profileNotConnected"></div>
     <div id="profileContent" style="display:none">
       <div class="profile-header">
-        <div class="profile-stat"><div class="val" id="profTotalBets">—</div><div class="lbl">Toplam Bahis</div></div>
-        <div class="profile-stat"><div class="val" id="profWins">—</div><div class="lbl">Kazanılan</div></div>
-        <div class="profile-stat"><div class="val" id="profAccuracy">—</div><div class="lbl">Doğruluk</div></div>
-        <div class="profile-stat"><div class="val" id="profNetPnl">—</div><div class="lbl">Net Kar/Zarar</div></div>
+        <div class="profile-stat"><div class="val" id="profTotalBets">—</div><div class="lbl" data-i18n="profTotalBetsLabel"></div></div>
+        <div class="profile-stat"><div class="val" id="profWins">—</div><div class="lbl" data-i18n="profWinsLabel"></div></div>
+        <div class="profile-stat"><div class="val" id="profAccuracy">—</div><div class="lbl" data-i18n="profAccuracyLabel"></div></div>
+        <div class="profile-stat"><div class="val" id="profNetPnl">—</div><div class="lbl" data-i18n="profNetPnlLabel"></div></div>
       </div>
-      <div class="section-title">Bahis Geçmişi</div>
+      <div class="section-title" data-i18n="sectionBetHistory"></div>
       <div id="historyContainer"></div>
     </div>
   </div>
 </main>
 <div id="shareModal" class="share-modal" style="display:none" onclick="if(event.target===this)closeShare()">
   <div class="share-box">
-    <h3>📤 Paylaş</h3>
+    <h3 data-i18n="shareTitle"></h3>
     <div class="share-text-preview" id="shareTextPreview"></div>
     <div class="share-btns">
       <button class="btn-twitter" onclick="shareTwitter()">𝕏 Twitter</button>
       <button class="btn-farcaster" onclick="shareFarcaster()">🟣 Farcaster</button>
-      <button class="btn-close-share" onclick="closeShare()">Kapat</button>
+      <button class="btn-close-share" onclick="closeShare()" data-i18n="shareClose"></button>
     </div>
   </div>
 </div>
 <div class="toast-container" id="toastContainer"></div>
 <script>
+  // ── i18n ────────────────────────────────────────────────────────────────────
+  const TRANSLATIONS = {
+    tr: {
+      connectBtn: 'MetaMask Bağla', connectedBtn: 'Bağlandı ✓',
+      tabPredictions: '🔮 Tahminler', tabMatches: '⚽ Maçlar', tabLeaderboard: '🏆 Liderlik', tabProfile: '👤 Profil',
+      heroTitle: 'Geleceği Tahmin Et, Kazan', heroSub: 'Arc Blockchain üzerinde merkezi olmayan tahmin oyunu',
+      statTotalLabel: 'Toplam Tahmin', statActiveLabel: 'Aktif Bahis', statPoolLabel: 'Toplam Havuz',
+      sectionPredictions: 'Tahminler',
+      filterAll: 'Tümü', filterPolitics: '🏛 Siyaset', filterEconomy: '📈 Ekonomi',
+      filterEntertainment: '🎬 Magazin', filterSports: '⚽ Spor', filterCrypto: '₿ Kripto',
+      emptyConnectPred: 'MetaMask bağlandıktan sonra tahminler yüklenecek...',
+      statMatchesLabel: 'Toplam Maç', statMatchPoolLabel: 'Toplam Havuz', statMatchOpenLabel: 'Bahis Açık',
+      sectionWC: 'FIFA Dünya Kupası 2026', emptyConnectMatch: 'MetaMask bağlandıktan sonra maçlar yüklenecek...',
+      lbStatPlayersLabel: 'Toplam Oyuncu', lbStatTopWinLabel: 'En Yüksek Kazanç', lbStatAvgAccLabel: 'Ort. Doğruluk',
+      sectionTopWinners: 'En Çok Kazananlar', emptyLeaderboard: 'Liderlik tablosu yükleniyor...',
+      profileNotConnected: 'MetaMask bağlandıktan sonra profiliniz görünecek.',
+      profTotalBetsLabel: 'Toplam Bahis', profWinsLabel: 'Kazanılan', profAccuracyLabel: 'Doğruluk', profNetPnlLabel: 'Net Kar/Zarar',
+      sectionBetHistory: 'Bahis Geçmişi', shareTitle: '📤 Paylaş', shareClose: 'Kapat',
+      badgeOpen: 'AÇIK', badgeClosed: 'KAPALI', badgeResultYes: 'SONUÇ: EVET ✓', badgeResultNo: 'SONUÇ: HAYIR ✗',
+      badgeResolved: 'SONUÇLANDI', badgeUpcoming: 'AÇIK',
+      expired: 'Süresi doldu', unitDay: 'g', unitHour: 's', unitMin: 'd', unitLeft: 'kaldı',
+      pool: 'USDC havuz', amountPlaceholder: 'Miktar (USDC)',
+      loading: 'Yükleniyor...', noPredictions: 'Henüz tahmin yok.', noCategory: 'Bu kategoride tahmin bulunamadı.', loadError: 'Yükleme hatası.',
+      noMatches: 'Henüz maç yok.', scanning: 'Bahisler taranıyor...', noBetHistory: 'Henüz bahis geçmişiniz yok.',
+      yourYesBet: 'Evet bahsiniz:', yourNoBet: 'Hayır bahsiniz:', betYes: '✅ Evet', betNo: '❌ Hayır',
+      claimWin: '🏆 Kazancını Al', claimDone: '✓ Kazanç alındı', share: '📤 Paylaş',
+      sendingTx: 'İşlem gönderiliyor...', waitingConfirm: 'Onay bekleniyor...',
+      betPlacedPred: 'Bahis yerleştirildi!', betYesLabel: 'EVET', betNoLabel: 'HAYIR',
+      txError: 'İşlem hatası:', claiming: 'Kazanç alınıyor...', claimSuccess: 'Kazanç başarıyla alındı! 🎉',
+      error: 'Hata:', unknown: 'Bilinmiyor', connectFirst: 'Önce cüzdanı bağla!', validAmount: 'Geçerli bir miktar gir',
+      noMM: 'MetaMask bulunamadı!', connected: 'Cüzdan bağlandı:', connectError: 'Bağlantı hatası:',
+      lbColRank: '#', lbColPlayer: 'Oyuncu', lbColBets: 'Bahis', lbColWinnings: 'Kazanç (USDC)', lbColAccuracy: 'Doğruluk',
+      noLbData: 'Henüz liderlik verisi yok.', lbLoadError: 'Yükleme hatası:',
+      userHomeBet: 'Ev sahibi bahsiniz:', userDrawBet: 'Beraberlik bahsiniz:', userAwayBet: 'Deplasman bahsiniz:',
+      homeWon: 'Ev Sahibi Kazandı', draw: 'Beraberlik', awayWon: 'Deplasman Kazandı',
+      betHome: 'Ev Sahibi', betDraw: 'Beraberlik', betAway: 'Deplasman',
+      matchBetPlaced: 'bahsi yerleştirildi!', livePrice: 'Anlık fiyat:',
+      histBet: 'Bahis:', histPred: 'Tahmin #', histMatch: 'Maç #',
+      resultWin: '✓ KAZANDI', resultLoss: '✗ KAYBETTİ', resultPending: '⏳ Bekliyor',
+      loadingBets: 'bahis yükleniyor...',
+    },
+    en: {
+      connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓',
+      tabPredictions: '🔮 Predictions', tabMatches: '⚽ Matches', tabLeaderboard: '🏆 Leaderboard', tabProfile: '👤 Profile',
+      heroTitle: 'Predict the Future, Win', heroSub: 'Decentralized prediction game on Arc Blockchain',
+      statTotalLabel: 'Total Predictions', statActiveLabel: 'Active Bets', statPoolLabel: 'Total Pool',
+      sectionPredictions: 'Predictions',
+      filterAll: 'All', filterPolitics: '🏛 Politics', filterEconomy: '📈 Economy',
+      filterEntertainment: '🎬 Entertainment', filterSports: '⚽ Sports', filterCrypto: '₿ Crypto',
+      emptyConnectPred: 'Predictions will load after connecting MetaMask...',
+      statMatchesLabel: 'Total Matches', statMatchPoolLabel: 'Total Pool', statMatchOpenLabel: 'Open Bets',
+      sectionWC: 'FIFA World Cup 2026', emptyConnectMatch: 'Matches will load after connecting MetaMask...',
+      lbStatPlayersLabel: 'Total Players', lbStatTopWinLabel: 'Top Winnings', lbStatAvgAccLabel: 'Avg. Accuracy',
+      sectionTopWinners: 'Top Winners', emptyLeaderboard: 'Loading leaderboard...',
+      profileNotConnected: 'Your profile will appear after connecting MetaMask.',
+      profTotalBetsLabel: 'Total Bets', profWinsLabel: 'Won', profAccuracyLabel: 'Accuracy', profNetPnlLabel: 'Net P&L',
+      sectionBetHistory: 'Bet History', shareTitle: '📤 Share', shareClose: 'Close',
+      badgeOpen: 'OPEN', badgeClosed: 'CLOSED', badgeResultYes: 'RESULT: YES ✓', badgeResultNo: 'RESULT: NO ✗',
+      badgeResolved: 'RESOLVED', badgeUpcoming: 'OPEN',
+      expired: 'Expired', unitDay: 'd', unitHour: 'h', unitMin: 'm', unitLeft: 'left',
+      pool: 'USDC pool', amountPlaceholder: 'Amount (USDC)',
+      loading: 'Loading...', noPredictions: 'No predictions yet.', noCategory: 'No predictions in this category.', loadError: 'Loading error.',
+      noMatches: 'No matches yet.', scanning: 'Scanning bets...', noBetHistory: 'No bet history yet.',
+      yourYesBet: 'Your YES bet:', yourNoBet: 'Your NO bet:', betYes: '✅ Yes', betNo: '❌ No',
+      claimWin: '🏆 Claim Winnings', claimDone: '✓ Winnings claimed', share: '📤 Share',
+      sendingTx: 'Sending transaction...', waitingConfirm: 'Waiting for confirmation...',
+      betPlacedPred: 'Bet placed!', betYesLabel: 'YES', betNoLabel: 'NO',
+      txError: 'Transaction error:', claiming: 'Claiming winnings...', claimSuccess: 'Winnings claimed! 🎉',
+      error: 'Error:', unknown: 'Unknown', connectFirst: 'Connect wallet first!', validAmount: 'Enter a valid amount',
+      noMM: 'MetaMask not found!', connected: 'Wallet connected:', connectError: 'Connection error:',
+      lbColRank: '#', lbColPlayer: 'Player', lbColBets: 'Bets', lbColWinnings: 'Winnings (USDC)', lbColAccuracy: 'Accuracy',
+      noLbData: 'No leaderboard data yet.', lbLoadError: 'Loading error:',
+      userHomeBet: 'Your home bet:', userDrawBet: 'Your draw bet:', userAwayBet: 'Your away bet:',
+      homeWon: 'Home Won', draw: 'Draw', awayWon: 'Away Won',
+      betHome: 'Home', betDraw: 'Draw', betAway: 'Away',
+      matchBetPlaced: 'bet placed!', livePrice: 'Live price:',
+      histBet: 'Bet:', histPred: 'Prediction #', histMatch: 'Match #',
+      resultWin: '✓ WON', resultLoss: '✗ LOST', resultPending: '⏳ Pending',
+      loadingBets: 'bets loading...',
+    }
+  };
+
+  let lang = (() => {
+    const saved = localStorage.getItem('arc_lang');
+    if (saved && TRANSLATIONS[saved]) return saved;
+    const browser = (navigator.language || 'tr').toLowerCase();
+    return browser.startsWith('tr') ? 'tr' : 'en';
+  })();
+
+  function t(key) { return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.tr[key] ?? key; }
+
+  let walletConnected = false;
+
+  function applyTranslations() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (el.id === 'connectBtn') {
+        el.textContent = walletConnected ? t('connectedBtn') : t('connectBtn');
+      } else {
+        el.textContent = t(key);
+      }
+    });
+    const toggle = document.getElementById('langToggle');
+    if (toggle) toggle.textContent = lang === 'tr' ? 'EN' : 'TR';
+  }
+
+  function toggleLang() {
+    lang = lang === 'tr' ? 'en' : 'tr';
+    localStorage.setItem('arc_lang', lang);
+    applyTranslations();
+    if (allPredictions.length) renderFiltered();
+    if (allMatches.length) {
+      const container = document.getElementById('matches');
+      container.innerHTML = '';
+      allMatches.forEach(m => container.appendChild(buildMatchCard(m)));
+    }
+  }
+
+  // ── App constants ────────────────────────────────────────────────────────────
   const CONTRACT_ADDRESS    = "0xad1BDA8570C867A43e427ae2f6a9721Ac1b89975";
   const WC_CONTRACT_ADDRESS = "0x24c2AD016280f847d49874Dd06635B4DFe85Ea6D";
   const ARC_CHAIN_ID = "0x4CEF52";
@@ -285,8 +408,8 @@
     const events = [];
     for (let i = 0; i < chunks.length; i += LOG_PARALLEL) {
       const group = chunks.slice(i, i + LOG_PARALLEL);
-      const results = await Promise.all(group.map(([f, t]) =>
-        ct.queryFilter(filter, f, t).catch(() => [])
+      const results = await Promise.all(group.map(([f, t2]) =>
+        ct.queryFilter(filter, f, t2).catch(() => [])
       ));
       results.forEach(r => events.push(...r));
     }
@@ -343,7 +466,7 @@
       : allPredictions.filter(p => detectCategory(p.question) === activeCategory);
     container.innerHTML = '';
     if (!filtered.length) {
-      container.innerHTML = `<div class="empty-state">Bu kategoride tahmin bulunamadı.</div>`;
+      container.innerHTML = `<div class="empty-state">${t('noCategory')}</div>`;
       return;
     }
     filtered.forEach(p => container.appendChild(buildCard(p)));
@@ -358,6 +481,7 @@
       if (count > 0) btn.insertAdjacentHTML('beforeend', `<span class="filter-count">${count}</span>`);
     });
   }
+
   async function loadCryptoPrices() {
     try {
       const res = await fetch(
@@ -366,12 +490,8 @@
       );
       if (!res.ok) return;
       const data = await res.json();
-      cryptoPrices = {
-        BTC: data.bitcoin?.usd,
-        ETH: data.ethereum?.usd,
-        SOL: data.solana?.usd
-      };
-    } catch (_) { /* sessizce devam */ }
+      cryptoPrices = { BTC: data.bitcoin?.usd, ETH: data.ethereum?.usd, SOL: data.solana?.usd };
+    } catch (_) {}
   }
 
   function detectCoinFromQuestion(question) {
@@ -394,10 +514,20 @@
   function toast(msg, type="info") { const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toastContainer").appendChild(el); setTimeout(()=>el.remove(),4000); }
   function shortAddr(addr) { return addr.slice(0,6)+"..."+addr.slice(-4); }
   function parseEther(val) { return ethers.parseEther(String(val)); }
-  function timeLeft(deadline) { const now=Math.floor(Date.now()/1000),diff=Number(deadline)-now; if(diff<=0)return "Süresi doldu"; const d=Math.floor(diff/86400),h=Math.floor((diff%86400)/3600),m=Math.floor((diff%3600)/60); if(d>0)return `${d}g ${h}s kaldı`; if(h>0)return `${h}s ${m}d kaldı`; return `${m}d kaldı`; }
+
+  function timeLeft(deadline) {
+    const now=Math.floor(Date.now()/1000), diff=Number(deadline)-now;
+    if (diff<=0) return t('expired');
+    const d=Math.floor(diff/86400), h=Math.floor((diff%86400)/3600), m=Math.floor((diff%3600)/60);
+    if (d>0) return `${d}${t('unitDay')} ${h}${t('unitHour')} ${t('unitLeft')}`;
+    if (h>0) return `${h}${t('unitHour')} ${m}${t('unitMin')} ${t('unitLeft')}`;
+    return `${m}${t('unitMin')} ${t('unitLeft')}`;
+  }
+
   document.getElementById("connectBtn").addEventListener("click", connectWallet);
+
   async function connectWallet() {
-    if(!window.ethereum){toast("MetaMask bulunamadı!","error");return;}
+    if(!window.ethereum){toast(t('noMM'),"error");return;}
     try {
       const accounts=await window.ethereum.request({method:"eth_requestAccounts"});
       userAddress=accounts[0];
@@ -409,24 +539,28 @@
       document.getElementById("walletAddr").textContent=shortAddr(userAddress);
       document.getElementById("walletAddr").style.display="inline";
       document.getElementById("networkBadge").style.display="inline";
-      document.getElementById("connectBtn").textContent="Bağlandı ✓";
-      document.getElementById("connectBtn").style.background="rgba(34,197,94,0.2)";
-      toast("Cüzdan bağlandı: "+shortAddr(userAddress),"success");
+      walletConnected = true;
+      const connectBtn = document.getElementById("connectBtn");
+      connectBtn.textContent = t('connectedBtn');
+      connectBtn.style.background="rgba(34,197,94,0.2)";
+      toast(t('connected')+" "+shortAddr(userAddress),"success");
       loadCryptoPrices();
       await loadPredictions();
-    } catch(err){toast("Bağlantı hatası: "+(err.message||err),"error");}
+    } catch(err){toast(t('connectError')+" "+(err.message||err),"error");}
   }
+
   async function switchToArc() {
     try { await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:ARC_CHAIN_ID}]}); }
     catch(e) { if(e.code===4902){try{await window.ethereum.request({method:"wallet_addEthereumChain",params:[ARC_NETWORK]});}catch(a){const m=(a?.message||"").toLowerCase();if(a?.code===-32602||m.includes("already")||m.includes("exists"))return;throw a;}}else throw e; }
   }
+
   async function loadPredictions() {
     const container=document.getElementById("predictions");
-    container.innerHTML=`<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    container.innerHTML=`<div class="empty-state"><span class="spinner"></span> ${t('loading')}</div>`;
     try {
       const count=Number(await contract.predictionCount());
       document.getElementById("statTotal").textContent=count;
-      if(count===0){container.innerHTML=`<div class="empty-state">Henüz tahmin yok.</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
+      if(count===0){container.innerHTML=`<div class="empty-state">${t('noPredictions')}</div>`;document.getElementById("statActive").textContent="0";document.getElementById("statPool").textContent="0 USDC";return;}
       const PRED_BATCH=10;
       const items=[];
       const updateStats=()=>{const now=Math.floor(Date.now()/1000);const active=items.filter(p=>!p.resolved&&Number(p.deadline)>now);const totalPool=items.reduce((acc,p)=>acc+Number(BigInt(p.totalYes)+BigInt(p.totalNo)),0);document.getElementById("statActive").textContent=active.length;document.getElementById("statPool").textContent=(totalPool/1e18).toFixed(2)+" USDC";};
@@ -441,61 +575,70 @@
       allPredictions=items.slice().reverse();
       updateFilterCounts();
       renderFiltered();
-    } catch(err){container.innerHTML=`<div class="empty-state">Yükleme hatası.</div>`;console.error(err);}
+    } catch(err){container.innerHTML=`<div class="empty-state">${t('loadError')}</div>`;console.error(err);}
   }
+
   function parseP([question,deadline,resolved,result,totalYes,totalNo]){return{question,deadline,resolved,result,totalYes,totalNo};}
+
   function buildCard(p) {
     const now=Math.floor(Date.now()/1000),isOpen=!p.resolved&&Number(p.deadline)>now;
     const yesN=Number(BigInt(p.totalYes)),noN=Number(BigInt(p.totalNo)),total=yesN+noN;
     const yesPct=total>0?Math.round((yesN/total)*100):50;
     const [userYes,userNo,userClaimed]=p.userBets;
     const hasWon=p.resolved&&((p.result&&Number(BigInt(userYes))>0)||(!p.result&&Number(BigInt(userNo))>0));
-    let badgeClass="badge-active",badgeText="AÇIK";
-    if(p.resolved){badgeClass=p.result?"badge-resolved-yes":"badge-resolved-no";badgeText="SONUÇ: "+(p.result?"EVET ✓":"HAYIR ✗");}
-    else if(!isOpen){badgeClass="badge-closed";badgeText="KAPALI";}
+    let badgeClass="badge-active", badgeText=t('badgeOpen');
+    if(p.resolved){badgeClass=p.result?"badge-resolved-yes":"badge-resolved-no";badgeText=p.result?t('badgeResultYes'):t('badgeResultNo');}
+    else if(!isOpen){badgeClass="badge-closed";badgeText=t('badgeClosed');}
+    const coin=detectCoinFromQuestion(p.question);
+    const price=coin&&cryptoPrices[coin];
+    const priceBadge=price?`<span class="price-badge">◈ ${t('livePrice')} $${Number(price).toLocaleString('en-US')}</span>`:'';
     const card=document.createElement("div");
     card.className="pred-card";
     card.innerHTML=`
       <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><span class="pred-badge ${badgeClass}">${badgeText}</span></div>
-      <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} USDC havuz</span><span>#${p.id}</span>${(()=>{const coin=detectCoinFromQuestion(p.question);const price=coin&&cryptoPrices[coin];return price?`<span class="price-badge">◈ Anlık fiyat: $${Number(price).toLocaleString('en-US')}</span>`:''})()}</div>
+      <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} ${t('pool')}</span><span>#${p.id}</span>${priceBadge}</div>
       <div class="progress-container">
-        <div class="progress-labels"><span class="label-yes">EVET ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% HAYIR (${(noN/1e18).toFixed(4)})</span></div>
+        <div class="progress-labels"><span class="label-yes">${t('betYesLabel')} ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% ${t('betNoLabel')} (${(noN/1e18).toFixed(4)})</span></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${yesPct}%"></div></div>
       </div>
-      ${isOpen?`<div class="bet-row"><input class="bet-input" id="amt-${p.id}" type="number" min="0.0001" step="0.0001" placeholder="Miktar (USDC)" /><button class="btn-yes" onclick="placeBet(${p.id},true)">✅ Evet</button><button class="btn-no" onclick="placeBet(${p.id},false)">❌ Hayır</button></div>${Number(BigInt(userYes))>0?`<div class="your-bet-info">Evet bahsiniz: ${(Number(BigInt(userYes))/1e18).toFixed(4)} USDC</div>`:""}${Number(BigInt(userNo))>0?`<div class="your-bet-info">Hayır bahsiniz: ${(Number(BigInt(userNo))/1e18).toFixed(4)} USDC</div>`:""}`:""} 
-      ${hasWon&&!userClaimed?`<button class="btn-claim" onclick="claimWinnings(${p.id})">🏆 Kazancını Al</button>`:""}
-      ${hasWon&&userClaimed?`<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>`:""}
-      <button class="btn-share" onclick="openSharePred(${p.id},${yesPct})">📤 Paylaş</button>
+      ${isOpen?`<div class="bet-row"><input class="bet-input" id="amt-${p.id}" type="number" min="0.0001" step="0.0001" placeholder="${t('amountPlaceholder')}" /><button class="btn-yes" onclick="placeBet(${p.id},true)">${t('betYes')}</button><button class="btn-no" onclick="placeBet(${p.id},false)">${t('betNo')}</button></div>${Number(BigInt(userYes))>0?`<div class="your-bet-info">${t('yourYesBet')} ${(Number(BigInt(userYes))/1e18).toFixed(4)} USDC</div>`:""}${Number(BigInt(userNo))>0?`<div class="your-bet-info">${t('yourNoBet')} ${(Number(BigInt(userNo))/1e18).toFixed(4)} USDC</div>`:""}`:""}
+      ${hasWon&&!userClaimed?`<button class="btn-claim" onclick="claimWinnings(${p.id})">${t('claimWin')}</button>`:""}
+      ${hasWon&&userClaimed?`<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">${t('claimDone')}</div>`:""}
+      <button class="btn-share" onclick="openSharePred(${p.id},${yesPct})">${t('share')}</button>
     `;
     return card;
   }
+
   function escHtml(str){return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
   async function placeBet(predictionId,isYes) {
-    if(!contract){toast("Önce cüzdanı bağla!","error");return;}
+    if(!contract){toast(t('connectFirst'),"error");return;}
     const input=document.getElementById(`amt-${predictionId}`);
     const amount=parseFloat(input.value);
-    if(!amount||amount<=0){toast("Geçerli bir miktar gir","error");return;}
+    if(!amount||amount<=0){toast(t('validAmount'),"error");return;}
     try {
-      toast("İşlem gönderiliyor...");
+      toast(t('sendingTx'));
       const tx=await contract.placeBet(predictionId,isYes,{value:parseEther(amount.toString())});
-      toast("Onay bekleniyor...");
+      toast(t('waitingConfirm'));
       await tx.wait();
-      toast(`Bahis yerleştirildi! ${amount} USDC ${isYes?"EVET":"HAYIR"}`,"success");
+      toast(`${t('betPlacedPred')} ${amount} USDC ${isYes?t('betYesLabel'):t('betNoLabel')}`,"success");
       input.value="";
       await loadPredictions();
-    } catch(err){toast("İşlem hatası: "+(err?.reason||err?.message||"Bilinmiyor"),"error");}
+    } catch(err){toast(t('txError')+" "+(err?.reason||err?.message||t('unknown')),"error");}
   }
+
   async function claimWinnings(predictionId) {
-    if(!contract){toast("Önce cüzdanı bağla!","error");return;}
+    if(!contract){toast(t('connectFirst'),"error");return;}
     try {
-      toast("Kazanç alınıyor...");
+      toast(t('claiming'));
       const tx=await contract.claimWinnings(predictionId);
       await tx.wait();
-      toast("Kazanç başarıyla alındı! 🎉","success");
+      toast(t('claimSuccess'),"success");
       await loadPredictions();
-    } catch(err){toast("Hata: "+(err?.reason||err?.message||"Bilinmiyor"),"error");}
+    } catch(err){toast(t('error')+" "+(err?.reason||err?.message||t('unknown')),"error");}
   }
-  // ── MAÇLAR ────────────────────────────────────────────────────
+
+  // ── MATCHES ──────────────────────────────────────────────────────────────────
   function calcOdds(myPool, totalPool) {
     if (!myPool || myPool === 0n) return '—';
     const gross = (totalPool * 98n) / (100n * myPool);
@@ -507,20 +650,20 @@
     const now = Math.floor(Date.now()/1000), diff = kickoff - now;
     if (diff > 0) {
       const d = Math.floor(diff/86400), h = Math.floor((diff%86400)/3600), m = Math.floor((diff%3600)/60);
-      if (d > 0) return `${d}g ${h}s kaldı`;
-      if (h > 0) return `${h}s ${m}d kaldı`;
-      return `${m}d kaldı`;
+      if (d > 0) return `${d}${t('unitDay')} ${h}${t('unitHour')} ${t('unitLeft')}`;
+      if (h > 0) return `${h}${t('unitHour')} ${m}${t('unitMin')} ${t('unitLeft')}`;
+      return `${m}${t('unitMin')} ${t('unitLeft')}`;
     }
-    return 'Süresi doldu';
+    return t('expired');
   }
 
   async function loadMatches() {
     const container = document.getElementById('matches');
-    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('loading')}</div>`;
     try {
       const count = Number(await wcContract.matchCount());
       document.getElementById('statMatches').textContent = count;
-      if (count === 0) { container.innerHTML = `<div class="empty-state">Henüz maç yok.</div>`; return; }
+      if (count === 0) { container.innerHTML = `<div class="empty-state">${t('noMatches')}</div>`; return; }
 
       const items = await Promise.all(Array.from({length:count},(_,i) =>
         wcContract.getMatch(i).then(async m => {
@@ -538,7 +681,7 @@
       allMatches = items;
       container.innerHTML = '';
       items.forEach(m => container.appendChild(buildMatchCard(m)));
-    } catch(err) { container.innerHTML = `<div class="empty-state">Yükleme hatası.</div>`; console.error(err); }
+    } catch(err) { container.innerHTML = `<div class="empty-state">${t('loadError')}</div>`; console.error(err); }
   }
 
   function buildMatchCard(m) {
@@ -555,11 +698,12 @@
     const poolAwayFmt = (Number(m.poolAway)/1e18).toFixed(3);
 
     const kickoffDate = new Date(m.kickoff*1000);
-    const kickoffStr = kickoffDate.toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit'}) + ' ' + kickoffDate.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    const locale = lang === 'tr' ? 'tr-TR' : 'en-GB';
+    const kickoffStr = kickoffDate.toLocaleDateString(locale,{day:'2-digit',month:'2-digit'}) + ' ' + kickoffDate.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});
 
     let badgeHtml, badgeClass;
     if (m.resolved) {
-      const labels = ['Ev Sahibi Kazandı','Beraberlik','Deplasman Kazandı'];
+      const labels = [t('homeWon'), t('draw'), t('awayWon')];
       const cls = ['home','draw','away'];
       badgeHtml = `<div class="match-result ${cls[m.result]}">${labels[m.result]} ✓</div>`;
       badgeClass = 'badge-finished';
@@ -571,7 +715,7 @@
       badgeClass = 'badge-upcoming';
     }
 
-    const statusText = m.resolved ? 'SONUÇLANDI' : (isOpen ? 'AÇIK' : 'KAPALI');
+    const statusText = m.resolved ? t('badgeResolved') : (isOpen ? t('badgeUpcoming') : t('badgeClosed'));
 
     const hasWon = m.resolved && (
       (m.result===0 && Number(m.userHome)>0) ||
@@ -591,7 +735,7 @@
         <span class="match-badge ${badgeClass}">${statusText}</span>
         <span>📅 ${kickoffStr}</span>
         ${!m.resolved ? `<span>⏱ ${matchTimeLabel(m.kickoff)}</span>` : ''}
-        <span>💰 ${(Number(totalPool)/1e18).toFixed(3)} USDC havuz</span>
+        <span>💰 ${(Number(totalPool)/1e18).toFixed(3)} ${t('pool')}</span>
       </div>
       ${badgeHtml}
       <div class="odds-row">
@@ -601,7 +745,7 @@
           <div class="odds-pool">${poolHomeFmt} USDC</div>
         </div>
         <div class="odds-btn${isOpen?'':' disabled-look'}" ${isOpen?`onclick="placeBetMatch(${m.id},1)"`:''}>
-          <div class="odds-label">🤝 Beraberlik</div>
+          <div class="odds-label">🤝 ${t('draw')}</div>
           <div class="odds-value">${oddsDraw === '—' ? '3.50' : oddsDraw}x</div>
           <div class="odds-pool">${poolDrawFmt} USDC</div>
         </div>
@@ -611,53 +755,53 @@
           <div class="odds-pool">${poolAwayFmt} USDC</div>
         </div>
       </div>
-      ${isOpen ? `<div class="match-bet-row"><input class="bet-input" id="wamt-${m.id}" type="number" min="0.0001" step="0.0001" placeholder="Miktar (USDC)" /></div>` : ''}
-      ${Number(m.userHome)>0 ? `<div class="your-bet-info">Ev sahibi bahsiniz: ${(Number(m.userHome)/1e18).toFixed(4)} USDC</div>` : ''}
-      ${Number(m.userDraw)>0 ? `<div class="your-bet-info">Beraberlik bahsiniz: ${(Number(m.userDraw)/1e18).toFixed(4)} USDC</div>` : ''}
-      ${Number(m.userAway)>0 ? `<div class="your-bet-info">Deplasman bahsiniz: ${(Number(m.userAway)/1e18).toFixed(4)} USDC</div>` : ''}
-      ${hasWon && !m.claimed ? `<button class="btn-claim" style="margin-top:0.75rem" onclick="claimMatch(${m.id})">🏆 Kazancını Al</button>` : ''}
-      ${hasWon && m.claimed ? `<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">✓ Kazanç alındı</div>` : ''}
-      <button class="btn-share" onclick="openShareMatch(${m.id})">📤 Paylaş</button>
+      ${isOpen ? `<div class="match-bet-row"><input class="bet-input" id="wamt-${m.id}" type="number" min="0.0001" step="0.0001" placeholder="${t('amountPlaceholder')}" /></div>` : ''}
+      ${Number(m.userHome)>0 ? `<div class="your-bet-info">${t('userHomeBet')} ${(Number(m.userHome)/1e18).toFixed(4)} USDC</div>` : ''}
+      ${Number(m.userDraw)>0 ? `<div class="your-bet-info">${t('userDrawBet')} ${(Number(m.userDraw)/1e18).toFixed(4)} USDC</div>` : ''}
+      ${Number(m.userAway)>0 ? `<div class="your-bet-info">${t('userAwayBet')} ${(Number(m.userAway)/1e18).toFixed(4)} USDC</div>` : ''}
+      ${hasWon && !m.claimed ? `<button class="btn-claim" style="margin-top:0.75rem" onclick="claimMatch(${m.id})">${t('claimWin')}</button>` : ''}
+      ${hasWon && m.claimed ? `<div class="your-bet-info" style="color:var(--yes);margin-top:0.5rem;">${t('claimDone')}</div>` : ''}
+      <button class="btn-share" onclick="openShareMatch(${m.id})">${t('share')}</button>
     `;
     return card;
   }
 
   async function placeBetMatch(matchId, outcome) {
-    if (!wcContract) { toast("Önce cüzdanı bağla!", "error"); return; }
+    if (!wcContract) { toast(t('connectFirst'), "error"); return; }
     const input = document.getElementById(`wamt-${matchId}`);
     const amount = parseFloat(input?.value);
-    if (!amount || amount <= 0) { toast("Geçerli bir miktar gir", "error"); return; }
-    const labels = ['Ev Sahibi', 'Beraberlik', 'Deplasman'];
+    if (!amount || amount <= 0) { toast(t('validAmount'), "error"); return; }
+    const labels = [t('betHome'), t('betDraw'), t('betAway')];
     try {
-      toast("İşlem gönderiliyor...");
+      toast(t('sendingTx'));
       const tx = await wcContract.placeBet(matchId, outcome, {value: parseEther(amount.toString())});
-      toast("Onay bekleniyor...");
+      toast(t('waitingConfirm'));
       await tx.wait();
-      toast(`${labels[outcome]} bahsi yerleştirildi! ${amount} USDC`, "success");
+      toast(`${labels[outcome]} ${t('matchBetPlaced')} ${amount} USDC`, "success");
       if (input) input.value = "";
       await loadMatches();
-    } catch(err) { toast("İşlem hatası: " + (err?.reason || err?.message || "Bilinmiyor"), "error"); }
+    } catch(err) { toast(t('txError') + " " + (err?.reason || err?.message || t('unknown')), "error"); }
   }
 
   async function claimMatch(matchId) {
-    if (!wcContract) { toast("Önce cüzdanı bağla!", "error"); return; }
+    if (!wcContract) { toast(t('connectFirst'), "error"); return; }
     try {
-      toast("Kazanç alınıyor...");
+      toast(t('claiming'));
       const tx = await wcContract.claimWinnings(matchId);
       await tx.wait();
-      toast("Kazanç başarıyla alındı! 🎉", "success");
+      toast(t('claimSuccess'), "success");
       await loadMatches();
-    } catch(err) { toast("Hata: " + (err?.reason || err?.message || "Bilinmiyor"), "error"); }
+    } catch(err) { toast(t('error') + " " + (err?.reason || err?.message || t('unknown')), "error"); }
   }
 
-  // ── LEADERBOARD ────────────────────────────────────────────────────────────
+  // ── LEADERBOARD ──────────────────────────────────────────────────────────────
   let leaderboardLastLoad = 0;
   async function loadLeaderboard() {
     const now = Date.now();
-    if (now - leaderboardLastLoad < 60000) return; // 60s TTL önbellek
+    if (now - leaderboardLastLoad < 60000) return;
     leaderboardLastLoad = now;
     const container = document.getElementById('leaderboardContainer');
-    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    container.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('loading')}</div>`;
     try {
       const res = await fetch('/api/leaderboard');
       const data = await res.json();
@@ -665,7 +809,7 @@
         document.getElementById('lbStatPlayers').textContent = '0';
         document.getElementById('lbStatTopWin').textContent = '0.00 USDC';
         document.getElementById('lbStatAvgAcc').textContent = '—';
-        container.innerHTML = `<div class="empty-state">Henüz liderlik verisi yok.</div>`;
+        container.innerHTML = `<div class="empty-state">${t('noLbData')}</div>`;
         return;
       }
       const lb = data.leaderboard;
@@ -691,15 +835,15 @@
 
       container.innerHTML = `
         <table class="lb-table">
-          <thead><tr><th>#</th><th>Oyuncu</th><th>Bahis</th><th>Kazanç (USDC)</th><th>Doğruluk</th></tr></thead>
+          <thead><tr><th>${t('lbColRank')}</th><th>${t('lbColPlayer')}</th><th>${t('lbColBets')}</th><th>${t('lbColWinnings')}</th><th>${t('lbColAccuracy')}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     } catch (err) {
-      container.innerHTML = `<div class="empty-state">Yükleme hatası: ${err.message}</div>`;
+      container.innerHTML = `<div class="empty-state">${t('lbLoadError')} ${err.message}</div>`;
     }
   }
 
-  // ── PROFILE / HISTORY ──────────────────────────────────────────────────────
+  // ── PROFILE / HISTORY ────────────────────────────────────────────────────────
   function renderProfileItems(allItems) {
     const histContainer = document.getElementById('historyContainer');
     const totalBets = allItems.length;
@@ -715,13 +859,16 @@
     const pnlEl = document.getElementById('profNetPnl');
     pnlEl.textContent = (netPnl >= 0 ? '+' : '') + netPnl.toFixed(3) + ' USDC';
     pnlEl.style.color = netPnl >= 0 ? 'var(--yes)' : 'var(--no)';
-    if (!allItems.length) { histContainer.innerHTML = `<div class="empty-state">Henüz bahis geçmişiniz yok.</div>`; return; }
+    if (!allItems.length) { histContainer.innerHTML = `<div class="empty-state">${t('noBetHistory')}</div>`; return; }
     histContainer.innerHTML = allItems.map(x => {
-      const statusLabel = x.status === 'win' ? `<span class="result-win">✓ KAZANDI (+${x.winnings.toFixed(4)} USDC)</span>` :
-        x.status === 'loss' ? `<span class="result-loss">✗ KAYBETTİ</span>` :
-        `<span class="result-pending">⏳ Bekliyor</span>`;
+      const statusLabel = x.status === 'win'
+        ? `<span class="result-win">${t('resultWin')} (+${x.winnings.toFixed(4)} USDC)</span>`
+        : x.status === 'loss'
+        ? `<span class="result-loss">${t('resultLoss')}</span>`
+        : `<span class="result-pending">${t('resultPending')}</span>`;
       const typeIcon = x.type === 'match' ? '⚽' : '🔮';
-      return `<div class="history-item"><div><div class="history-q">${typeIcon} ${escHtml(x.q)}</div><div class="history-meta">Bahis: ${x.userBetTotal.toFixed(4)} USDC${x.type === 'match' ? ` | Maç #${x.id}` : ` | Tahmin #${x.id}`}</div></div><div class="history-result">${statusLabel}</div></div>`;
+      const idLabel = x.type === 'match' ? `${t('histMatch')}${x.id}` : `${t('histPred')}${x.id}`;
+      return `<div class="history-item"><div><div class="history-q">${typeIcon} ${escHtml(x.q)}</div><div class="history-meta">${t('histBet')} ${x.userBetTotal.toFixed(4)} USDC | ${idLabel}</div></div><div class="history-result">${statusLabel}</div></div>`;
     }).join('');
   }
 
@@ -737,9 +884,8 @@
       document.getElementById(id).textContent = '...'
     );
     const histContainer = document.getElementById('historyContainer');
-    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Yükleniyor...</div>`;
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('loading')}</div>`;
 
-    // ── 1. Sunucu API (hızlı yol) ──────────────────────────────────
     try {
       const res = await fetch(`/api/profile?address=${userAddress}`,
         { signal: AbortSignal.timeout(15000) });
@@ -750,10 +896,9 @@
           return;
         }
       }
-    } catch (_) { /* API erişilemez — fallback'e geç */ }
+    } catch (_) {}
 
-    // ── 2. Fallback: istemci tarafı RPC + localStorage cache ───────
-    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> Bahisler taranıyor...</div>`;
+    histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('scanning')}</div>`;
     try {
       const latest = await provider.getBlockNumber();
       const [predIds, matchIds] = await Promise.all([
@@ -762,7 +907,7 @@
       ]);
       const totalExpected = predIds.length + matchIds.length;
       if (totalExpected > 0) {
-        histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${totalExpected} bahis yükleniyor...</div>`;
+        histContainer.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${totalExpected} ${t('loadingBets')}</div>`;
       }
       const [predItems, matchItems] = await Promise.all([
         Promise.all(predIds.map(async i => {
@@ -776,7 +921,7 @@
             let winnings = 0, status = 'pending';
             if (resolved) {
               const won = (result && userYes > 0) || (!result && userNo > 0);
-              if (won) { const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo)); winnings = (( result ? userYes : userNo) * totalPool * 98) / (winPool * 100); status = 'win'; }
+              if (won) { const winPool = result ? Number(BigInt(totalYes)) : Number(BigInt(totalNo)); winnings = ((result ? userYes : userNo) * totalPool * 98) / (winPool * 100); status = 'win'; }
               else { status = 'loss'; }
             }
             return { type: 'pred', id: i, q: String(q), deadline: Number(deadline), resolved, result, status, userBetTotal: (userYes + userNo) / 1e18, winnings: winnings / 1e18, claimed };
@@ -802,17 +947,21 @@
       ]);
       renderProfileItems([...predItems, ...matchItems].filter(Boolean).reverse());
     } catch (err) {
-      histContainer.innerHTML = `<div class="empty-state">Yükleme hatası: ${err.message}</div>`;
+      histContainer.innerHTML = `<div class="empty-state">${t('loadError')} ${err.message}</div>`;
     }
   }
 
-  // ── SOCIAL SHARING ─────────────────────────────────────────────────────────
+  // ── SOCIAL SHARING ───────────────────────────────────────────────────────────
   let shareText = '';
   function openSharePred(id, yesPct) {
     const pred = allPredictions.find(p => p.id === id);
     if (!pred) return;
     const pool = ((Number(BigInt(pred.totalYes)) + Number(BigInt(pred.totalNo))) / 1e18).toFixed(2);
-    shareText = `🔮 Arc Predict'te tahmin ettim!\n\n"${pred.question}"\n\n📊 EVET ${yesPct}% | HAYIR ${100 - yesPct}%\n💰 Toplam Havuz: ${pool} USDC\n\n🔗 ${window.location.origin}\n#ArcPredict #Web3 #Prediction`;
+    if (lang === 'en') {
+      shareText = `🔮 I predicted on Arc Predict!\n\n"${pred.question}"\n\n📊 YES ${yesPct}% | NO ${100 - yesPct}%\n💰 Total Pool: ${pool} USDC\n\n🔗 ${window.location.origin}\n#ArcPredict #Web3 #Prediction`;
+    } else {
+      shareText = `🔮 Arc Predict'te tahmin ettim!\n\n"${pred.question}"\n\n📊 EVET ${yesPct}% | HAYIR ${100 - yesPct}%\n💰 Toplam Havuz: ${pool} USDC\n\n🔗 ${window.location.origin}\n#ArcPredict #Web3 #Tahmin`;
+    }
     document.getElementById('shareTextPreview').textContent = shareText;
     document.getElementById('shareModal').style.display = 'flex';
   }
@@ -821,29 +970,33 @@
     const m = allMatches[id];
     if (!m) return;
     const pool = (Number(m.poolHome + m.poolDraw + m.poolAway) / 1e18).toFixed(2);
-    const resultStr = m.resolved ? ['Ev Sahibi Kazandı','Beraberlik','Deplasman Kazandı'][m.result] + ' ✓' : 'Bahis Açık';
-    shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Havuz: ${pool} USDC\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n🔗 ${window.location.origin}\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+    if (lang === 'en') {
+      const resultStr = m.resolved ? [t('homeWon'), t('draw'), t('awayWon')][m.result] + ' ✓' : 'Open for Bets';
+      shareText = `⚽ I placed a match bet on Arc Predict!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Pool: ${pool} USDC\n\n🏆 FIFA World Cup 2026 prediction platform!\n🔗 ${window.location.origin}\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+    } else {
+      const resultStr = m.resolved ? ['Ev Sahibi Kazandı','Beraberlik','Deplasman Kazandı'][m.result] + ' ✓' : 'Bahis Açık';
+      shareText = `⚽ Arc Predict'te maç tahmini yaptım!\n\n${m.homeTeam} vs ${m.awayTeam}\n${resultStr}\n💰 Havuz: ${pool} USDC\n\n🏆 FIFA Dünya Kupası 2026 bahis platformu!\n🔗 ${window.location.origin}\n#ArcPredict #FIFAWorldCup2026 #Web3`;
+    }
     document.getElementById('shareTextPreview').textContent = shareText;
     document.getElementById('shareModal').style.display = 'flex';
   }
 
-  function closeShare() {
-    document.getElementById('shareModal').style.display = 'none';
-  }
+  function closeShare() { document.getElementById('shareModal').style.display = 'none'; }
+  function shareTwitter() { window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText), '_blank', 'noopener'); }
+  function shareFarcaster() { window.open('https://warpcast.com/~/compose?text=' + encodeURIComponent(shareText), '_blank', 'noopener'); }
 
-  function shareTwitter() {
-    const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText);
-    window.open(url, '_blank', 'noopener');
-  }
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  applyTranslations();
 
-  function shareFarcaster() {
-    const url = 'https://warpcast.com/~/compose?text=' + encodeURIComponent(shareText);
-    window.open(url, '_blank', 'noopener');
-  }
-
-  window.addEventListener("load",async()=>{if(!window.ethereum)return;try{const accounts=await window.ethereum.request({method:"eth_accounts"});if(accounts.length>0)await connectWallet();}catch(_){}});
-  window.ethereum?.on("accountsChanged",()=>location.reload());
-  window.ethereum?.on("chainChanged",()=>location.reload());
+  window.addEventListener("load", async () => {
+    if (!window.ethereum) return;
+    try {
+      const accounts = await window.ethereum.request({method:"eth_accounts"});
+      if (accounts.length > 0) await connectWallet();
+    } catch(_) {}
+  });
+  window.ethereum?.on("accountsChanged", () => location.reload());
+  window.ethereum?.on("chainChanged", () => location.reload());
 </script>
 </body>
-</html>﻿
+</html>
