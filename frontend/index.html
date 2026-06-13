@@ -1076,6 +1076,8 @@
 
     const card = document.createElement('div');
     card.className = 'match-card';
+    card.dataset.apiHome = m.homeTeam?.name || '';
+    card.dataset.apiAway = m.awayTeam?.name || '';
     card.innerHTML = `
       <div class="match-meta" style="margin-bottom:0.5rem">
         <span class="wc-group">${escHtml(stageLabel)}</span>
@@ -1089,7 +1091,7 @@
       <div class="match-meta" style="margin-top:0.5rem">
         <span>📅 ${dateStr}</span>
       </div>
-      <button class="btn-place-bet" onclick="goToMatchBet(${JSON.stringify(m.homeTeam?.name||'')},${JSON.stringify(m.awayTeam?.name||'')})">${t('wcPlaceBet')}</button>
+      <button class="btn-place-bet" onclick="goToMatchBet(this.closest('.match-card').dataset.apiHome, this.closest('.match-card').dataset.apiAway)">${t('wcPlaceBet')}</button>
     `;
     return card;
   }
