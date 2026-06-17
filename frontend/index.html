@@ -178,7 +178,36 @@
     .match-highlight { border-color: var(--accent2) !important; box-shadow: 0 0 36px rgba(168,85,247,0.55) !important; }
     @keyframes highlightPulse { 0%,100% { box-shadow: 0 0 36px rgba(168,85,247,0.55); } 50% { box-shadow: 0 0 56px rgba(168,85,247,0.85); } }
     .match-highlight { animation: highlightPulse 1s ease-in-out 3; }
+    /* ── Feature 1: Probability pills ── */
+    .prob-pill { display: inline-flex; align-items: center; padding: 0.28rem 0.7rem; border-radius: 20px; font-size: 0.88rem; font-weight: 800; white-space: nowrap; }
+    .prob-pill-yes { background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4); color: #22c55e; }
+    .prob-pill-no { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; }
+    .prob-pill-even { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+    .odds-pct { font-size: 0.73rem; color: var(--accent2); margin-top: 0.1rem; font-weight: 800; }
+    /* ── Feature 2: Resolution source ── */
+    .resolve-source { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.75rem; opacity: 0.8; }
+    /* ── Feature 3: Search bar ── */
+    .search-bar { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1rem 0.6rem 2.4rem; border-radius: 10px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; margin-bottom: 1rem; }
+    .search-bar:focus { border-color: var(--accent); }
+    .search-bar::placeholder { color: var(--muted); }
+    .search-wrap { position: relative; }
+    .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.95rem; pointer-events: none; }
+    /* ── Feature 4: Mobile UX improvements ── */
+    /* ── Feature 5: Activity feed ── */
+    .activity-feed { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .activity-feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .activity-feed-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .activity-feed-refresh { font-size: 0.72rem; color: var(--muted); }
+    .activity-item { font-size: 0.81rem; padding: 0.42rem 0; border-bottom: 1px solid rgba(76,42,122,0.3); display: flex; align-items: flex-start; gap: 0.5rem; line-height: 1.4; }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot { flex-shrink: 0; }
+    .activity-dot-yes { color: #22c55e; }
+    .activity-dot-no { color: #ef4444; }
+    .activity-time { color: var(--muted); font-size: 0.72rem; flex-shrink: 0; white-space: nowrap; margin-left: auto; }
+    .activity-addr { color: var(--accent2); font-family: monospace; }
+    .activity-empty { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 0.5rem 0; }
     @media (max-width: 600px) { .stats-bar { grid-template-columns: 1fr 1fr; } .bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 0.75rem; font-size: 0.82rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } .wc-score { font-size: 1.2rem; min-width: 70px; } }
+    @media (max-width: 480px) { .stats-bar { grid-template-columns: 1fr; } .profile-header { grid-template-columns: 1fr 1fr; } .bet-input { min-height: 44px; } .btn-yes, .btn-no { min-height: 44px; flex: 1; } .btn-claim, .btn-place-bet { min-height: 44px; } .odds-btn { padding: 0.85rem 0.4rem; } .pred-card, .match-card { padding: 1rem; } }
   </style>
 </head>
 <body>
@@ -219,9 +248,20 @@
       <div class="stat-card"><div class="value" id="statActive">—</div><div class="label" data-i18n="statActiveLabel"></div></div>
       <div class="stat-card"><div class="value" id="statPool">—</div><div class="label" data-i18n="statPoolLabel"></div></div>
     </div>
+    <div class="activity-feed" id="activityFeed" style="display:none">
+      <div class="activity-feed-header">
+        <span class="activity-feed-title" data-i18n="activityFeed"></span>
+        <span class="activity-feed-refresh" id="activityRefreshLabel"></span>
+      </div>
+      <div id="activityList"><div class="activity-empty" data-i18n="activityEmpty"></div></div>
+    </div>
     <div class="section-header">
       <div class="section-title" data-i18n="sectionPredictions"></div>
       <button id="adminCreateBtn" class="admin-btn" style="display:none" onclick="openCreateModal()"></button>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-bar" id="predSearchBar" type="text" oninput="onPredSearch(this.value)" data-i18n-placeholder="searchPredictions" />
     </div>
     <div class="filter-bar" id="filterBar">
       <button class="filter-btn active" data-cat="tumu" onclick="setFilter('tumu')" data-i18n="filterAll"></button>
@@ -244,6 +284,10 @@
       <div class="stat-card"><div class="value" id="statMatchOpen">—</div><div class="label" data-i18n="statMatchOpenLabel"></div></div>
     </div>
     <div class="section-title" data-i18n="sectionWC"></div>
+    <div class="search-wrap" style="margin-bottom:1rem">
+      <span class="search-icon">🔍</span>
+      <input class="search-bar" id="matchSearchBar" type="text" oninput="onMatchSearch(this.value)" data-i18n-placeholder="searchMatches" style="margin-bottom:0" />
+    </div>
     <div id="matches">
       <div class="empty-state" data-i18n="emptyConnectMatch"></div>
     </div>
@@ -371,6 +415,9 @@
       wcLive: 'CANLI', wcFin: 'BİTTİ', wcSch: 'PROGRAMDA',
       wcGroupStage: 'Grup Aşaması', wcLast32: 'Son 32', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
       wcGroup: 'Grup', wcPlaceBet: '⚽ Bahis Yap', wcPickMatch: 'Aşağıdaki maçlardan birini seçerek bahis yap',
+      resolveBinance: 'Binance fiyatıyla çözümlenir', resolveSports: 'football-data.org ile çözümlenir', resolveNews: 'Haber analizi ile çözümlenir',
+      searchPredictions: 'Tahminlerde ara...', searchMatches: 'Maçlarda ara...',
+      activityFeed: 'Son Aktiviteler', activityEmpty: 'Henüz aktivite yok.', activityBet: 'üzerinde bahis yaptı',
     },
     en: {
       connectBtn: 'Connect MetaMask', connectedBtn: 'Connected ✓', disconnect: 'Disconnect',
@@ -420,6 +467,9 @@
       wcLive: 'LIVE', wcFin: 'FIN', wcSch: 'SCH',
       wcGroupStage: 'Group Stage', wcLast32: 'Round of 32', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
       wcGroup: 'Group', wcPlaceBet: '⚽ Place Bet', wcPickMatch: 'Select a match below to place your bet',
+      resolveBinance: 'Resolved via Binance price', resolveSports: 'Resolved via football-data.org', resolveNews: 'Resolved via news analysis',
+      searchPredictions: 'Search predictions...', searchMatches: 'Search matches...',
+      activityFeed: 'Recent Activity', activityEmpty: 'No activity yet.', activityBet: 'bet on',
     }
   };
 
@@ -444,6 +494,9 @@
       } else {
         el.textContent = t(key);
       }
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.dataset.i18nPlaceholder);
     });
     document.getElementById('disconnectBtn').textContent = t('disconnect');
     const adminBtn = document.getElementById('adminCreateBtn');
@@ -493,6 +546,8 @@
   let allPredictions = [];
   let allMatches = [];
   let activeCategory = 'tumu';
+  let predSearchQuery = '';
+  let matchSearchQuery = '';
 
   const DEPLOY_BLOCK = 46186575;
   const LOG_CHUNK = 10000;
@@ -560,15 +615,42 @@
 
   function renderFiltered() {
     const container = document.getElementById('predictions');
-    const filtered = activeCategory === 'tumu'
+    const q = predSearchQuery.toLowerCase().trim();
+    let filtered = activeCategory === 'tumu'
       ? allPredictions
       : allPredictions.filter(p => detectCategory(p.question) === activeCategory);
+    if (q) filtered = filtered.filter(p => p.question.toLowerCase().includes(q));
     container.innerHTML = '';
     if (!filtered.length) {
       container.innerHTML = `<div class="empty-state">${t('noCategory')}</div>`;
       return;
     }
     filtered.forEach(p => container.appendChild(buildCard(p)));
+  }
+
+  function onPredSearch(val) {
+    predSearchQuery = val;
+    renderFiltered();
+  }
+
+  function onMatchSearch(val) {
+    matchSearchQuery = val.toLowerCase().trim();
+    renderMatchesFiltered();
+  }
+
+  function renderMatchesFiltered() {
+    const container = document.getElementById('matches');
+    if (!allMatches.length) return;
+    const q = matchSearchQuery;
+    const filtered = q
+      ? allMatches.filter(m => (m.homeTeam + ' ' + m.awayTeam).toLowerCase().includes(q))
+      : allMatches;
+    container.innerHTML = '';
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state">${t('noCategory')}</div>`;
+      return;
+    }
+    filtered.forEach(m => container.appendChild(buildMatchCard(m)));
   }
 
   function updateFilterCounts() {
@@ -664,12 +746,15 @@
       }).catch(() => {});
       loadCryptoPrices();
       await loadPredictions();
+      loadActivityFeed();
     } catch(err){toast(t('connectError')+" "+(err.message||err),"error");}
   }
 
   function disconnectWallet() {
     userAddress = null; signer = null; contract = null; wcContract = null; provider = null;
     walletConnected = false; isAdmin = false;
+    if (activityFeedTimer) { clearTimeout(activityFeedTimer); activityFeedTimer = null; }
+    document.getElementById("activityFeed").style.display = "none";
     document.getElementById("adminCreateBtn").style.display = "none";
     const connectBtn = document.getElementById("connectBtn");
     connectBtn.textContent = t('connectBtn');
@@ -764,11 +849,16 @@
     const coin=detectCoinFromQuestion(p.question);
     const price=coin&&cryptoPrices[coin];
     const priceBadge=price?`<span class="price-badge">◈ ${t('livePrice')} $${Number(price).toLocaleString('en-US')}</span>`:'';
+    const probPillClass = yesPct > 50 ? 'prob-pill-yes' : yesPct < 50 ? 'prob-pill-no' : 'prob-pill-even';
+    const probDisplay = yesPct > 50 ? `${yesPct}% ${t('betYesLabel')}` : yesPct < 50 ? `${100-yesPct}% ${t('betNoLabel')}` : `50% ${t('betYesLabel')}`;
+    const cat = detectCategory(p.question);
+    const resolveSrc = cat === 'kripto' ? t('resolveBinance') : cat === 'spor' ? t('resolveSports') : t('resolveNews');
     const card=document.createElement("div");
     card.className="pred-card";
     card.innerHTML=`
-      <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><span class="pred-badge ${badgeClass}">${badgeText}</span></div>
+      <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0"><span class="pred-badge ${badgeClass}">${badgeText}</span><span class="prob-pill ${probPillClass}">${probDisplay}</span></div></div>
       <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} ${t('pool')}</span><span>#${p.id}</span>${priceBadge}</div>
+      <div class="resolve-source">🔍 ${resolveSrc}</div>
       <div class="progress-container">
         <div class="progress-labels"><span class="label-yes">${t('betYesLabel')} ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% ${t('betNoLabel')} (${(noN/1e18).toFixed(4)})</span></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${yesPct}%"></div></div>
@@ -851,8 +941,7 @@
       document.getElementById('statMatchPool').textContent = (totalPool/1e18).toFixed(2) + ' USDC';
 
       allMatches = items;
-      container.innerHTML = '';
-      items.forEach(m => container.appendChild(buildMatchCard(m)));
+      renderMatchesFiltered();
     } catch(err) { container.innerHTML = `<div class="empty-state">${t('loadError')}</div>`; console.error(err); }
   }
 
@@ -864,6 +953,10 @@
     const oddsHome = calcOdds(m.poolHome, totalPool);
     const oddsDraw = calcOdds(m.poolDraw, totalPool);
     const oddsAway = calcOdds(m.poolAway, totalPool);
+    const totalPoolN = Number(totalPool);
+    const homePct = totalPoolN > 0 ? Math.round(Number(m.poolHome) / totalPoolN * 100) : 33;
+    const drawPct = totalPoolN > 0 ? Math.round(Number(m.poolDraw) / totalPoolN * 100) : 34;
+    const awayPct = totalPoolN > 0 ? 100 - homePct - drawPct : 33;
 
     const poolHomeFmt = (Number(m.poolHome)/1e18).toFixed(3);
     const poolDrawFmt = (Number(m.poolDraw)/1e18).toFixed(3);
@@ -915,16 +1008,19 @@
         <div class="odds-btn${isOpen?'':' disabled-look'}" ${isOpen?`onclick="placeBetMatch(${m.id},0)"`:''}>
           <div class="odds-label">🏠 ${escHtml(m.homeTeam)}</div>
           <div class="odds-value">${oddsHome === '—' ? '3.00' : oddsHome}x</div>
+          <div class="odds-pct">${homePct}%</div>
           <div class="odds-pool">${poolHomeFmt} USDC</div>
         </div>
         <div class="odds-btn${isOpen?'':' disabled-look'}" ${isOpen?`onclick="placeBetMatch(${m.id},1)"`:''}>
           <div class="odds-label">🤝 ${t('draw')}</div>
           <div class="odds-value">${oddsDraw === '—' ? '3.50' : oddsDraw}x</div>
+          <div class="odds-pct">${drawPct}%</div>
           <div class="odds-pool">${poolDrawFmt} USDC</div>
         </div>
         <div class="odds-btn${isOpen?'':' disabled-look'}" ${isOpen?`onclick="placeBetMatch(${m.id},2)"`:''}>
           <div class="odds-label">✈️ ${escHtml(m.awayTeam)}</div>
           <div class="odds-value">${oddsAway === '—' ? '3.00' : oddsAway}x</div>
+          <div class="odds-pct">${awayPct}%</div>
           <div class="odds-pool">${poolAwayFmt} USDC</div>
         </div>
       </div>
@@ -1264,6 +1360,55 @@
   function closeShare() { document.getElementById('shareModal').style.display = 'none'; }
   function shareTwitter() { window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText), '_blank', 'noopener'); }
   function shareFarcaster() { window.open('https://warpcast.com/~/compose?text=' + encodeURIComponent(shareText), '_blank', 'noopener'); }
+
+  // ── Activity Feed ────────────────────────────────────────────────────────────
+  let activityFeedTimer = null;
+  let activityLastBlock = 0;
+
+  function timeAgo(ts) {
+    const diff = Math.floor(Date.now() / 1000) - ts;
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.floor(diff/60)}${t('unitMin')}`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}${t('unitHour')}`;
+    return `${Math.floor(diff/86400)}${t('unitDay')}`;
+  }
+
+  async function loadActivityFeed() {
+    if (!contract || !provider) return;
+    const feedEl = document.getElementById('activityFeed');
+    const listEl = document.getElementById('activityList');
+    const labelEl = document.getElementById('activityRefreshLabel');
+    feedEl.style.display = 'block';
+    try {
+      const latest = await provider.getBlockNumber();
+      const fromBlock = Math.max(DEPLOY_BLOCK, latest - 5000);
+      const events = await contract.queryFilter(contract.filters.BetPlaced(), fromBlock, latest).catch(() => []);
+      const sorted = events.slice(-10).reverse();
+      if (!sorted.length) {
+        listEl.innerHTML = `<div class="activity-empty">${t('activityEmpty')}</div>`;
+      } else {
+        const blocks = await Promise.all([...new Set(sorted.map(e => e.blockNumber))].map(bn =>
+          provider.getBlock(bn).then(b => [bn, b?.timestamp || 0]).catch(() => [bn, 0])
+        ));
+        const blockTimes = Object.fromEntries(blocks);
+        const rows = await Promise.all(sorted.map(async e => {
+          const id = Number(e.args[0]);
+          const bettor = e.args[1];
+          const isYes = e.args[2];
+          const amt = (Number(BigInt(e.args[3])) / 1e18).toFixed(2);
+          const ts = blockTimes[e.blockNumber] || 0;
+          let qText = '';
+          try { const pred = await contract.getPrediction(id); qText = String(pred[0]).slice(0, 50) + (String(pred[0]).length > 50 ? '…' : ''); } catch {}
+          const dot = isYes ? `<span class="activity-dot activity-dot-yes">●</span>` : `<span class="activity-dot activity-dot-no">●</span>`;
+          const side = isYes ? t('betYesLabel') : t('betNoLabel');
+          return `<div class="activity-item">${dot}<span><span class="activity-addr">${shortAddr(bettor)}</span> ${amt} USDC <strong>${side}</strong> — ${escHtml(qText)}</span><span class="activity-time">${ts ? timeAgo(ts) : '—'}</span></div>`;
+        }));
+        listEl.innerHTML = rows.join('');
+      }
+      if (labelEl) labelEl.textContent = new Date().toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-GB', {hour:'2-digit',minute:'2-digit'});
+    } catch (_) {}
+    activityFeedTimer = setTimeout(loadActivityFeed, 30000);
+  }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   applyTranslations();
