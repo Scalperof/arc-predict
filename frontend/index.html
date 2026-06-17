@@ -510,11 +510,7 @@
     localStorage.setItem('arc_lang', lang);
     applyTranslations();
     if (allPredictions.length) renderFiltered();
-    if (allMatches.length) {
-      const container = document.getElementById('matches');
-      container.innerHTML = '';
-      allMatches.forEach(m => container.appendChild(buildMatchCard(m)));
-    }
+    if (allMatches.length) renderMatchesFiltered();
     if (allWCMatches.length) renderWCScores();
   }
 
@@ -607,7 +603,7 @@
 
   function setFilter(cat) {
     activeCategory = cat;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    document.querySelectorAll('#filterBar .filter-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.cat === cat);
     });
     renderFiltered();
@@ -1363,7 +1359,6 @@
 
   // ── Activity Feed ────────────────────────────────────────────────────────────
   let activityFeedTimer = null;
-  let activityLastBlock = 0;
 
   function timeAgo(ts) {
     const diff = Math.floor(Date.now() / 1000) - ts;
@@ -1375,6 +1370,7 @@
 
   async function loadActivityFeed() {
     if (!contract || !provider) return;
+    if (activityFeedTimer) { clearTimeout(activityFeedTimer); activityFeedTimer = null; }
     const feedEl = document.getElementById('activityFeed');
     const listEl = document.getElementById('activityList');
     const labelEl = document.getElementById('activityRefreshLabel');
