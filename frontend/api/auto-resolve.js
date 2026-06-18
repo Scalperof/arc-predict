@@ -65,7 +65,11 @@ function detectCategory(question) {
   const q = question.toLowerCase();
   const scores = {};
   for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
-    scores[cat] = kws.filter(k => q.includes(k)).length;
+    scores[cat] = kws.filter(k =>
+      k.length <= 5
+        ? new RegExp(`\\b${k}\\b`).test(q)  // word-boundary for short tickers (ada, defi, sol…)
+        : q.includes(k)
+    ).length;
   }
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   return sorted[0][1] === 0 ? 'siyaset' : sorted[0][0];
