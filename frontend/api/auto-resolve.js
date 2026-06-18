@@ -367,9 +367,9 @@ async function resolveSports(question, deadline, anthropic) {
         `${f.teams?.home?.name} ${f.goals?.home ?? '?'}-${f.goals?.away ?? '?'} ${f.teams?.away?.name} (${f.fixture?.date?.split('T')[0]})`
       ).join('\n');
 
-      const result = await askClaude(question, [fixtureData], anthropic, true);
-      if (result !== null) {
-        return { result, reason: `api-sports.io ${finished.length} biten maç + Claude`, source: 'api-sports.io+claude' };
+      const { result: r1, reasoning: rs1 } = await askClaude(question, [fixtureData], anthropic, true);
+      if (r1 !== null) {
+        return { result: r1, reason: `api-sports.io ${finished.length} biten maç + Claude | ${rs1}`, source: 'api-sports.io+claude' };
       }
     }
   }
@@ -377,9 +377,9 @@ async function resolveSports(question, deadline, anthropic) {
   // ── Google News + Claude fallback ──
   const headlines = await fetchGoogleNews(question);
   if (headlines.length > 0) {
-    const result = await askClaude(question, headlines, anthropic, false);
-    if (result !== null) {
-      return { result, reason: `Google News + Claude | "${headlines[0]?.slice(0, 60)}"`, source: 'google-news+claude' };
+    const { result: r2, reasoning: rs2 } = await askClaude(question, headlines, anthropic, false);
+    if (r2 !== null) {
+      return { result: r2, reason: `Google News + Claude | ${rs2}`, source: 'google-news+claude' };
     }
   }
 
@@ -430,24 +430,36 @@ async function fetchGoogleNews(question) {
 }
 
 // isStructured=true: headlines is a single block of structured data, not a news list
+// Returns { result: true|false|null, reasoning: string }
 async function askClaude(question, headlines, anthropic, isStructured = false) {
-  if (!headlines.length) return null;
+  if (!headlines.length) return { result: null, reasoning: 'Veri yok' };
   const body = isStructured
     ? headlines.join('\n')
     : headlines.map(h => `- ${h}`).join('\n');
 
   const resp = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 20,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 300,
     messages: [{
       role: 'user',
-      content: `Soru: "${question}"\n\nGuncel bilgi:\n${body}\n\nSADECE "EVET", "HAYIR" veya "BELIRSIZ" yaz.`,
+      content: `Aşağıdaki tahmin sorusunu ve güncel bilgileri analiz et. SADECE JSON döndür, başka açıklama yapma.\n\nSoru: "${question}"\n\nGüncel bilgi:\n${body}\n\nYanıtını YALNIZCA şu JSON formatında ver:\n{"answer":"yes","reasoning":"kısa açıklama"}\nveya {"answer":"no","reasoning":"kısa açıklama"}\nveya {"answer":"inconclusive","reasoning":"neden belirlenemedi"}`,
     }],
   });
-  const answer = resp.content.find(b => b.type === 'text')?.text?.trim().toUpperCase() || '';
-  if (answer.includes('EVET')) return true;
-  if (answer.includes('HAYIR')) return false;
-  return null;
+  const text = resp.content.find(b => b.type === 'text')?.text?.trim() || '';
+  try {
+    const m = text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(m ? m[0] : text);
+    const answer = (parsed.answer || '').toLowerCase();
+    const reasoning = parsed.reasoning || '';
+    if (answer === 'yes') return { result: true, reasoning };
+    if (answer === 'no') return { result: false, reasoning };
+    return { result: null, reasoning: reasoning || 'Belirsiz' };
+  } catch {
+    const up = text.toUpperCase();
+    if (up.includes('YES') || up.includes('EVET')) return { result: true, reasoning: text.slice(0, 100) };
+    if (up.includes('NO') || up.includes('HAYIR')) return { result: false, reasoning: text.slice(0, 100) };
+    return { result: null, reasoning: `JSON parse hatası: ${text.slice(0, 80)}` };
+  }
 }
 
 async function resolveNews(question, category, anthropic) {
@@ -465,14 +477,13 @@ async function resolveNews(question, category, anthropic) {
     return { result: null, reason: 'RSS + Google News boş — manuel inceleme', source: 'none' };
   }
 
-  const result = await askClaude(question, allHeadlines, anthropic, false);
-  const sample = allHeadlines.slice(0, 2).join(' | ').slice(0, 100);
+  const { result, reasoning } = await askClaude(question, allHeadlines, anthropic, false);
 
   return {
     result,
     reason: result === null
-      ? `Claude BELİRSİZ (${allHeadlines.length} haber) | "${sample}"`
-      : `${category.toUpperCase()} RSS+Google+Claude (${allHeadlines.length} haber) | "${sample}"`,
+      ? `Claude BELİRSİZ (${allHeadlines.length} haber) | ${reasoning}`
+      : `${category.toUpperCase()} RSS+Google+Claude (${allHeadlines.length} haber) | ${reasoning}`,
     source: `${category}-rss+claude`,
   };
 }
@@ -488,7 +499,8 @@ async function resolveNews(question, category, anthropic) {
 const READ_BATCH = 5;
 const MAX_PER_RUN = 10;
 
-module.exports = async function handler(req, res) {
+// Named exports for dry-run testing
+const handler = async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || req.headers['authorization'] !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -543,6 +555,7 @@ module.exports = async function handler(req, res) {
     for (const pred of toProcess) {
       const { id, question, deadline } = pred;
       const category = detectCategory(question);
+      console.log(`\n[${id}] CATEGORY=${category.toUpperCase()} | ${question.slice(0, 70)}`);
       let resolution;
 
       if (category === 'kripto') {
@@ -554,6 +567,8 @@ module.exports = async function handler(req, res) {
       }
 
       const { result, reason, source } = resolution;
+      console.log(`[${id}] RESOLVER=${source} | DECISION=${result === null ? 'INCONCLUSIVE' : result ? 'YES ✅' : 'NO ❌'}`);
+      console.log(`[${id}] REASON: ${reason.slice(0, 150)}`);
 
       if (result === null) {
         inconclusive++;
@@ -566,9 +581,11 @@ module.exports = async function handler(req, res) {
         const tx = await contract.resolvePrediction(id, result);
         await tx.wait();
         log.push(`[${id}] ${result ? 'EVET✅' : 'HAYIR❌'} [${category}/${source}] — ${reason} | Tx:${tx.hash.slice(0, 10)}`);
+        console.log(`[${id}] TX OK: ${tx.hash.slice(0, 16)}...`);
         resolved++;
       } catch (err) {
         log.push(`[${id}] TX HATA [${category}]: ${err.message.slice(0, 80)}`);
+        console.log(`[${id}] TX ERROR: ${err.message.slice(0, 80)}`);
         errors++;
       }
     }
@@ -588,3 +605,9 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ ok: false, error: err.message, log });
   }
 };
+
+module.exports = handler;
+module.exports.detectCategory = detectCategory;
+module.exports.resolveCrypto = resolveCrypto;
+module.exports.resolveSports = resolveSports;
+module.exports.resolveNews = resolveNews;
