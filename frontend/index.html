@@ -203,7 +203,8 @@
     .activity-dot { flex-shrink: 0; }
     .activity-dot-yes { color: #22c55e; }
     .activity-dot-no { color: #ef4444; }
-    .activity-time { color: var(--muted); font-size: 0.72rem; flex-shrink: 0; white-space: nowrap; margin-left: auto; }
+    .activity-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .activity-time { color: var(--muted); font-size: 0.72rem; flex-shrink: 0; white-space: nowrap; margin-left: auto; padding-left: 0.5rem; }
     .activity-addr { color: var(--accent2); font-family: monospace; }
     .activity-empty { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 0.5rem 0; }
     @media (max-width: 600px) { .stats-bar { grid-template-columns: repeat(3,1fr); }.bet-row { flex-wrap: wrap; } .bet-input { min-width: 0; } header { padding: 1rem; } .filter-bar { gap: 0.4rem; } .filter-btn { padding: 0.35rem 0.75rem; font-size: 0.78rem; } .tab-btn { padding: 0.65rem 0.75rem; font-size: 0.82rem; } .odds-value { font-size: 1rem; } .profile-header { grid-template-columns: 1fr 1fr; } .wc-score { font-size: 1.2rem; min-width: 70px; } }
@@ -1394,10 +1395,10 @@
           const amt = (Number(BigInt(e.args[3])) / 1e18).toFixed(2);
           const ts = blockTimes[e.blockNumber] || 0;
           let qText = '';
-          try { const pred = await contract.getPrediction(id); qText = String(pred[0]).slice(0, 50) + (String(pred[0]).length > 50 ? '…' : ''); } catch {}
+          try { const pred = await contract.getPrediction(id); qText = String(pred[0]); } catch {}
           const dot = isYes ? `<span class="activity-dot activity-dot-yes">●</span>` : `<span class="activity-dot activity-dot-no">●</span>`;
           const side = isYes ? t('betYesLabel') : t('betNoLabel');
-          return `<div class="activity-item">${dot}<span><span class="activity-addr">${shortAddr(bettor)}</span> ${amt} USDC <strong>${side}</strong> — ${escHtml(qText)}</span><span class="activity-time">${ts ? timeAgo(ts) : '—'}</span></div>`;
+          return `<div class="activity-item">${dot}<span class="activity-text"><span class="activity-addr">${shortAddr(bettor)}</span> ${amt} USDC <strong>${side}</strong> — ${escHtml(qText)}</span><span class="activity-time">${ts ? timeAgo(ts) : '—'}</span></div>`;
         }));
         listEl.innerHTML = rows.join('');
       }
