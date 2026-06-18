@@ -247,6 +247,10 @@ const TR_TEAM_MAP = {
   'norveç': 'norway', 'isveç': 'sweden', 'avusturya': 'austria',
   'iskocya': 'scotland', 'haiti': 'haiti', 'irak': 'iraq',
   'ingiltere': 'england', 'kostarika': 'costa rica',
+  'paraguay': 'paraguay', 'venezüela': 'venezuela', 'kolombiya': 'colombia',
+  'şili': 'chile', 'peru': 'peru', 'bolivya': 'bolivia',
+  'yeni zelanda': 'new zealand', 'nijerya': 'nigeria', 'senegal': 'senegal',
+  'fildişi sahili': 'ivory coast', 'angola': 'angola', 'kenya': 'kenya',
 };
 
 function normalizeTeam(name) {
@@ -308,17 +312,36 @@ async function resolveSports(question, deadline, anthropic) {
   if (mentionedTeams.length > 0) {
     const wcMatches = await fetchWCFinished();
     if (wcMatches.length > 0) {
-      const fixture = wcMatches.find(m => {
-        const home = normalizeTeam(m.homeTeam?.name || '');
-        const away = normalizeTeam(m.awayTeam?.name || '');
-        return mentionedTeams.some(t => {
-          const tn = normalizeTeam(t);
-          return home.includes(tn) || away.includes(tn) ||
-            tn.startsWith(home.split(' ')[0]) || tn.startsWith(away.split(' ')[0]);
-        });
-      });
+      const matchesTeam = (sideName, teamName) => {
+        const s = normalizeTeam(sideName);
+        const t = normalizeTeam(teamName);
+        return s.includes(t) || t.includes(s) ||
+          t.startsWith(s.split(' ')[0]) || s.startsWith(t.split(' ')[0]);
+      };
 
-      if (fixture) {
+      // If 2+ teams mentioned, require both in the same fixture
+      let fixture;
+      let exactMatchup = false;
+      if (mentionedTeams.length >= 2) {
+        fixture = wcMatches.find(m => {
+          const home = m.homeTeam?.name || '';
+          const away = m.awayTeam?.name || '';
+          return mentionedTeams.every(t => matchesTeam(home, t) || matchesTeam(away, t));
+        });
+        if (fixture) exactMatchup = true;
+      }
+      // Fall back to single-team match (only useful for win/loss, not oynanacak)
+      if (!fixture) {
+        fixture = wcMatches.find(m => {
+          const home = m.homeTeam?.name || '';
+          const away = m.awayTeam?.name || '';
+          return mentionedTeams.some(t => matchesTeam(home, t) || matchesTeam(away, t));
+        });
+      }
+
+      // Don't process fixture if oynanacak question needs exact pairing but only single-team found
+      const needsExactPairing = (q.includes('oynanacak') || q.includes('başlayacak')) && mentionedTeams.length >= 2;
+      if (fixture && !(needsExactPairing && !exactMatchup)) {
         const home = fixture.homeTeam?.name;
         const away = fixture.awayTeam?.name;
         const homeG = fixture.score?.fullTime?.home;
