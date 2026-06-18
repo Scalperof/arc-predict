@@ -178,14 +178,19 @@
     .match-highlight { border-color: var(--accent2) !important; box-shadow: 0 0 36px rgba(168,85,247,0.55) !important; }
     @keyframes highlightPulse { 0%,100% { box-shadow: 0 0 36px rgba(168,85,247,0.55); } 50% { box-shadow: 0 0 56px rgba(168,85,247,0.85); } }
     .match-highlight { animation: highlightPulse 1s ease-in-out 3; }
-    /* ── Feature 1: Probability pills ── */
-    .prob-pill { display: inline-flex; align-items: center; padding: 0.28rem 0.7rem; border-radius: 20px; font-size: 0.88rem; font-weight: 800; white-space: nowrap; }
-    .prob-pill-yes { background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4); color: #22c55e; }
-    .prob-pill-no { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; }
-    .prob-pill-even { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+    /* ── Feature 1: Probability display ── */
+    .prob-block { text-align: center; padding: 0.35rem 0.8rem; border-radius: 10px; min-width: 66px; flex-shrink: 0; }
+    .prob-block-yes  { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); }
+    .prob-block-no   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
+    .prob-block-even { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); }
+    .prob-big-num { font-size: 1.45rem; font-weight: 900; line-height: 1.1; }
+    .prob-block-yes .prob-big-num  { color: #22c55e; }
+    .prob-block-no .prob-big-num   { color: #ef4444; }
+    .prob-block-even .prob-big-num { color: #fbbf24; }
+    .prob-big-lbl { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-top: 0.1rem; }
     .odds-pct { font-size: 0.73rem; color: var(--accent2); margin-top: 0.1rem; font-weight: 800; }
     /* ── Feature 2: Resolution source ── */
-    .resolve-source { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.75rem; opacity: 0.8; }
+    .resolve-source { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; color: var(--muted); background: rgba(157,142,196,0.08); border: 1px solid rgba(157,142,196,0.18); border-radius: 6px; padding: 0.2rem 0.55rem; margin-bottom: 0.75rem; }
     /* ── Feature 3: Search bar ── */
     .search-bar { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1rem 0.6rem 2.4rem; border-radius: 10px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; margin-bottom: 1rem; }
     .search-bar:focus { border-color: var(--accent); }
@@ -416,7 +421,7 @@
       wcLive: 'CANLI', wcFin: 'BİTTİ', wcSch: 'PROGRAMDA',
       wcGroupStage: 'Grup Aşaması', wcLast32: 'Son 32', wcLast16: 'Son 16', wcQF: 'Çeyrek Final', wcSF: 'Yarı Final', wcTP: '3. Yer', wcFinal: 'Final',
       wcGroup: 'Grup', wcPlaceBet: '⚽ Bahis Yap', wcPickMatch: 'Aşağıdaki maçlardan birini seçerek bahis yap',
-      resolveBinance: 'Binance fiyatıyla çözümlenir', resolveSports: 'football-data.org ile çözümlenir', resolveNews: 'Haber analizi ile çözümlenir',
+      resolveBinance: 'Binance', resolveSports: 'football-data.org', resolveNews: 'AI Haber Analizi',
       searchPredictions: 'Tahminlerde ara...', searchMatches: 'Maçlarda ara...',
       activityFeed: 'Son Aktiviteler', activityEmpty: 'Henüz aktivite yok.', activityBet: 'üzerinde bahis yaptı',
     },
@@ -468,7 +473,7 @@
       wcLive: 'LIVE', wcFin: 'FIN', wcSch: 'SCH',
       wcGroupStage: 'Group Stage', wcLast32: 'Round of 32', wcLast16: 'Round of 16', wcQF: 'Quarter-Final', wcSF: 'Semi-Final', wcTP: '3rd Place', wcFinal: 'Final',
       wcGroup: 'Group', wcPlaceBet: '⚽ Place Bet', wcPickMatch: 'Select a match below to place your bet',
-      resolveBinance: 'Resolved via Binance price', resolveSports: 'Resolved via football-data.org', resolveNews: 'Resolved via news analysis',
+      resolveBinance: 'Binance', resolveSports: 'football-data.org', resolveNews: 'AI News Analysis',
       searchPredictions: 'Search predictions...', searchMatches: 'Search matches...',
       activityFeed: 'Recent Activity', activityEmpty: 'No activity yet.', activityBet: 'bet on',
     }
@@ -846,16 +851,15 @@
     const coin=detectCoinFromQuestion(p.question);
     const price=coin&&cryptoPrices[coin];
     const priceBadge=price?`<span class="price-badge">◈ ${t('livePrice')} $${Number(price).toLocaleString('en-US')}</span>`:'';
-    const probPillClass = yesPct > 50 ? 'prob-pill-yes' : yesPct < 50 ? 'prob-pill-no' : 'prob-pill-even';
-    const probDisplay = yesPct > 50 ? `${yesPct}% ${t('betYesLabel')}` : yesPct < 50 ? `${100-yesPct}% ${t('betNoLabel')}` : `50% ${t('betYesLabel')}`;
+    const probBlockClass = yesPct >= 60 ? 'prob-block-yes' : yesPct <= 40 ? 'prob-block-no' : 'prob-block-even';
     const cat = detectCategory(p.question);
-    const resolveSrc = cat === 'kripto' ? t('resolveBinance') : cat === 'spor' ? t('resolveSports') : t('resolveNews');
+    const resolveSrc = cat === 'kripto' ? `📊 ${t('resolveBinance')}` : cat === 'spor' ? `⚽ ${t('resolveSports')}` : `📰 ${t('resolveNews')}`;
     const card=document.createElement("div");
     card.className="pred-card";
     card.innerHTML=`
-      <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0"><span class="pred-badge ${badgeClass}">${badgeText}</span><span class="prob-pill ${probPillClass}">${probDisplay}</span></div></div>
+      <div class="pred-header"><div class="pred-question">${escHtml(p.question)}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0"><span class="pred-badge ${badgeClass}">${badgeText}</span><div class="prob-block ${probBlockClass}"><div class="prob-big-num">${yesPct}%</div><div class="prob-big-lbl">${t('betYesLabel')}</div></div></div></div>
       <div class="pred-meta"><span>⏱ ${timeLeft(p.deadline)}</span><span>💰 ${(total/1e18).toFixed(4)} ${t('pool')}</span><span>#${p.id}</span>${priceBadge}</div>
-      <div class="resolve-source">🔍 ${resolveSrc}</div>
+      <div class="resolve-source">${resolveSrc}</div>
       <div class="progress-container">
         <div class="progress-labels"><span class="label-yes">${t('betYesLabel')} ${yesPct}% (${(yesN/1e18).toFixed(4)})</span><span class="label-no">${100-yesPct}% ${t('betNoLabel')} (${(noN/1e18).toFixed(4)})</span></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${yesPct}%"></div></div>
