@@ -923,34 +923,41 @@
   async function loadMatches() {
     const container = document.getElementById('matches');
     container.innerHTML = `<div class="empty-state"><span class="spinner"></span> ${t('loading')}</div>`;
-    try {
-      const count = Number(await wcContract.matchCount());
-      document.getElementById('statMatches').textContent = count;
-      if (count === 0) { container.innerHTML = `<div class="empty-state">${t('noMatches')}</div>`; return; }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+        const count = Number(await wcContract.matchCount());
+        document.getElementById('statMatches').textContent = count;
+        if (count === 0) { container.innerHTML = `<div class="empty-state">${t('noMatches')}</div>`; return; }
 
-      const MATCH_BATCH = 5;
-      const items = [];
-      for (let s = 0; s < count; s += MATCH_BATCH) {
-        const batch = await Promise.all(
-          Array.from({length: Math.min(MATCH_BATCH, count - s)}, (_, j) => {
-            const i = s + j;
-            return Promise.all([wcContract.getMatch(i), wcContract.getUserBet(i, userAddress)])
-              .then(([m, ub]) => ({ id:i, homeTeam:m[0], awayTeam:m[1], kickoff:Number(m[2]), resolved:m[3], result:Number(m[4]), poolHome:m[5], poolDraw:m[6], poolAway:m[7], userHome:ub[0], userDraw:ub[1], userAway:ub[2], claimed:ub[3] }))
-              .catch(() => null);
-          })
-        );
-        items.push(...batch.filter(Boolean));
+        const MATCH_BATCH = 5;
+        const items = [];
+        for (let s = 0; s < count; s += MATCH_BATCH) {
+          const batch = await Promise.all(
+            Array.from({length: Math.min(MATCH_BATCH, count - s)}, (_, j) => {
+              const i = s + j;
+              return Promise.all([wcContract.getMatch(i), wcContract.getUserBet(i, userAddress)])
+                .then(([m, ub]) => ({ id:i, homeTeam:m[0], awayTeam:m[1], kickoff:Number(m[2]), resolved:m[3], result:Number(m[4]), poolHome:m[5], poolDraw:m[6], poolAway:m[7], userHome:ub[0], userDraw:ub[1], userAway:ub[2], claimed:ub[3] }))
+                .catch(() => null);
+            })
+          );
+          items.push(...batch.filter(Boolean));
+          if (s + MATCH_BATCH < count) await new Promise(r => setTimeout(r, 150));
+        }
+
+        const now = Math.floor(Date.now()/1000);
+        const openCount = items.filter(m => !m.resolved && m.kickoff > now).length;
+        const totalPool = items.reduce((a,m) => a + Number(m.poolHome + m.poolDraw + m.poolAway), 0);
+        document.getElementById('statMatchOpen').textContent = openCount;
+        document.getElementById('statMatchPool').textContent = (totalPool/1e18).toFixed(2) + ' USDC';
+
+        allMatches = items;
+        renderMatchesFiltered();
+        return;
+      } catch(err) {
+        if (attempt === 2) { container.innerHTML = `<div class="empty-state">${t('loadError')}</div>`; console.error(err); }
       }
-
-      const now = Math.floor(Date.now()/1000);
-      const openCount = items.filter(m => !m.resolved && m.kickoff > now).length;
-      const totalPool = items.reduce((a,m) => a + Number(m.poolHome + m.poolDraw + m.poolAway), 0);
-      document.getElementById('statMatchOpen').textContent = openCount;
-      document.getElementById('statMatchPool').textContent = (totalPool/1e18).toFixed(2) + ' USDC';
-
-      allMatches = items;
-      renderMatchesFiltered();
-    } catch(err) { container.innerHTML = `<div class="empty-state">${t('loadError')}</div>`; console.error(err); }
+    }
   }
 
   function buildMatchCard(m) {
